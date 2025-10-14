@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     DATABASE_URL is required and loaded from .env
     """
     DATABASE_URL: str
+    JWT_SECRET : str
+    JWT_ALGORITHM : str    
 
     model_config = {
         # .env is in the same folder as config.py
