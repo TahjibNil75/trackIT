@@ -11,10 +11,10 @@ async def lifespan(_app: FastAPI):
     yield
     print("Shutting down...")
 
-    
+
 
 version = "v1"
-_app = FastAPI()
+_app = FastAPI(lifespan=lifespan)
 
 version_prefix = f"/api/{version}"
 
