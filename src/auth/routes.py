@@ -12,12 +12,13 @@ from src.errors import (
     UserAlreadyExistsError,
 )
 from .utils import create_access_token, verify_password
-from datetime import timedelta
+from datetime import timedelta, datetime
 from fastapi.responses import JSONResponse
 from src.errors import (
     NotFoundError,
     InvalidCredentialsError,
 )
+from .dependencies import get_current_user, RefreshTokenBearer
 
 
 
@@ -98,3 +99,34 @@ async def login(
             }
         }
     )
+
+
+@auth_router.get(
+    "/me",
+    response_model=UserResponseModel,
+    status_code=status.HTTP_200_OK,
+)
+async def get_current_user(
+    user = Depends(get_current_user)
+):
+    return user
+
+
+@auth_router.get("/refresh_token")
+async def get_new_access_token(
+    token_details: dict = Depends(RefreshTokenBearer())
+):
+    expiry_timestamp = token_details.get("exp")
+    if datetime.fromtimestamp(expiry_timestamp) < datetime.now():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token has expired. Please login again.",
+        )
+
+    user_data = token_details.get("user")
+    new_access_token = create_access_token(user_data=user_data)
+    return {
+        "access_token": new_access_token,
+        "token_type": "bearer"
+    }
+
