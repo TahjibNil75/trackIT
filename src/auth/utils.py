@@ -1,5 +1,4 @@
 from passlib.context import CryptContext
-from jose import JWTError
 import jwt
 import uuid
 import logging
@@ -8,6 +7,8 @@ from src.config import Config
 
 
 password_context = CryptContext(schemes=["argon2"], deprecated="auto")
+
+ACCESS_TOKEN_EXPIRY=3600  # 1 hour in seconds
 
 def generate_hash_password(password: str) -> str:
     return password_context.hash(password)

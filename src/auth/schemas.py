@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from src.errors import PasswordMismatchError
 
 
@@ -40,8 +40,8 @@ class UserCreateModel(BaseModel):
         example="strongpassword123"
     )
     @field_validator("password_confirm")
-    def passwords_match(cls, v,values):
-        password = values.get("password")
+    def passwords_match(cls, v,info: ValidationInfo):
+        password = info.data.get("password")
         if password != v:
             raise PasswordMismatchError()
         return v
