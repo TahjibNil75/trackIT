@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from .service import TicketService
 from .schemas import TicketCreateRequest, TicketResponse
 from src.auth.dependencies import get_current_user
-from src.db.models import User
+from src.db.models.user import User
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.db.main import get_session
 from fastapi.exceptions import HTTPException

@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import uuid
 from typing import Optional, List
-from src.db.models import TicketStatus, TicketPriority, IssueType
+from src.db.models.ticket import TicketStatus, TicketPriority, IssueType
 
 
 class TicketResponse(BaseModel):
