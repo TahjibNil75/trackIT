@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # Import models here to ensure they are registered
-from src.db.models import User  
+from src.db.models import User 
+from src.db.models import Ticket 
 from sqlmodel import SQLModel
 from src.config import Config
 
