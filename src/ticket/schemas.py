@@ -51,7 +51,7 @@ class TicketUpdateRequest(BaseModel):
         min_length=10,
     )
     priority : Optional[TicketPriority] = None
-    type_of_issue : Optional[IssueType] = None
+    types_of_issue : Optional[IssueType] = None
     assigned_to : Optional[uuid.UUID] = None
 
 class TicketStatusModel(BaseModel):

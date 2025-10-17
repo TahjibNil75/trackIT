@@ -1,9 +1,10 @@
-from .schemas import TicketCreateRequest
+from .schemas import TicketCreateRequest, TicketUpdateRequest
 import uuid
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.db.models.ticket import Ticket, TicketStatus
 from src.db.models.user import User, UserRole
 from typing import Optional
+from sqlmodel import select, desc
 
 
 class TicketService:
@@ -34,3 +35,52 @@ class TicketService:
         if user.role not in [UserRole.ADMIN, UserRole.IT_SUPPORT, UserRole.MANAGER]:
             return False, "Assignee must have a role of Admin, IT Support, or Manager."
         return True, None
+    
+    async def get_ticket(
+            self,
+            ticket_id : uuid.UUID,
+            session : AsyncSession,
+
+    ):
+        statement = select(Ticket).where(Ticket.ticket_id == ticket_id)
+        result = await session.execute(statement)
+        # ticket = result.first()  # returns Row object, not Ticket
+        ticket = result.scalar_one_or_none()  # fix: ✅ returns Ticket instance
+        return ticket if ticket is not None else None
+    
+    async def update_ticket(
+            self,
+            ticket_id : uuid.UUID,
+            ticket_data : TicketUpdateRequest,
+            session : AsyncSession,
+    ):
+        ticket = await self.get_ticket(ticket_id, session)
+        if not ticket:
+            return None
+        
+        ticket_data_dict = ticket_data.model_dump(exclude_unset=True) # exclude_unset=True it tells Pydantic to only include the fields that the user actually provided in the update request —not all fields from the model definition.
+        ticket.sqlmodel_update(ticket_data_dict)
+        await session.commit()
+        await session.refresh(ticket)
+        return ticket
+    
+    async def check_user_permission(
+            self,
+            user : User,
+            ticket_id : uuid.UUID,
+            session : AsyncSession,
+    ):
+        ticket = await self.get_ticket(ticket_id, session)
+        if not ticket:
+            # return False, "Ticket not found."  # ❌ returns string instead of ticket object
+            return False, None # ✅ return None for ticket object if not found
+        
+        if ticket.created_by == user.user_id:
+            return True, ticket # ✅ return actual ticket object
+        if user.role in [UserRole.ADMIN, UserRole.IT_SUPPORT, UserRole.MANAGER]:
+            return True, ticket # ✅ same here
+        
+        return False, "You do not have permission to modify this ticket."
+        
+
+
