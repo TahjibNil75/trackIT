@@ -7,13 +7,16 @@ from sqlalchemy import(
     ForeignKey,
 )
 from sqlmodel import SQLModel, Field, Relationship
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime
 import uuid
 import enum
 from uuid import UUID
 import sqlalchemy.dialects.postgresql as pg
 
+# TYPE_CHECKING prevents circular imports
+if TYPE_CHECKING:
+    from .user import User
 
 
 class TicketStatus(enum.Enum):
@@ -37,8 +40,8 @@ class IssueType(enum.Enum):
 class Ticket(SQLModel, table=True):
     __tablename__ = "tickets"
 
-    ticket_id : uuid.UUID = Field(
-        sa_column = Column(
+    ticket_id: uuid.UUID = Field(
+        sa_column=Column(
             pg.UUID(as_uuid=True),
             primary_key=True,
             default=uuid.uuid4,
@@ -46,75 +49,63 @@ class Ticket(SQLModel, table=True):
             nullable=False,
         )
     )
-    subject: str = Field(
-        nullable=False,
-        max_length=200,
-    )
-    description : str = Field(
+    subject: str = Field(nullable=False, max_length=200)
+    description: str = Field(sa_column=Column(pg.TEXT, nullable=False))
+    priority: TicketPriority = Field(
         sa_column=Column(
-            pg.TEXT,
-            nullable=False,
-        )
-    )
-    # prioroty : TicketPriority = Field(
-    priority : TicketPriority = Field(  # ✅ fixed spelling here
-        sa_column=Column(
-            pg.ENUM(
-                TicketPriority,
-                name="ticket_priority",
-                create_type=True,
-            ),
+            pg.ENUM(TicketPriority, name="ticket_priority", create_type=True),
             nullable=False,
             default=TicketPriority.LOW,
         )
     )
-    types_of_issue : IssueType = Field(
-        sa_column = Column(
-            pg.ENUM(
-                IssueType,
-                name = "issue_types",
-                create_type=True,
-            ),
+    types_of_issue: IssueType = Field(
+        sa_column=Column(
+            pg.ENUM(IssueType, name="issue_types", create_type=True),
             nullable=False,
         )
     )
-    status : TicketStatus = Field(
-        sa_column = Column(
-            pg.ENUM(
-                TicketStatus,
-                name="ticket_status",
-                create_type=True,
-            ),
+    status: TicketStatus = Field(
+        sa_column=Column(
+            pg.ENUM(TicketStatus, name="ticket_status", create_type=True),
             nullable=False,
             default=TicketStatus.OPEN,
         )
     )
-    created_by : uuid.UUID = Field(
-        sa_column = Column(
+    created_by: uuid.UUID = Field(
+        sa_column=Column(
             pg.UUID(as_uuid=True),
             ForeignKey("users.user_id", ondelete="CASCADE"),
             nullable=False,
         )
     )
-    assigned_to : Optional[uuid.UUID] = Field(
+    assigned_to: Optional[uuid.UUID] = Field(
         sa_column=Column(
             pg.UUID(as_uuid=True),
             ForeignKey("users.user_id", ondelete="SET NULL"),
             nullable=True,
         )
     )
-    created_at : datetime = Field(
+    created_at: datetime = Field(
         default_factory=datetime.utcnow,
-        sa_column=Column(
-            pg.TIMESTAMP(timezone=True),
-            nullable=False,
-        )
+        sa_column=Column(pg.TIMESTAMP(timezone=True), nullable=False)
     )
-    updated_at : datetime = Field(
+    updated_at: datetime = Field(
         default_factory=datetime.utcnow,
-        sa_column=Column(
-            pg.TIMESTAMP(timezone=True),
-            nullable=False,
-            onupdate=func.now(),
-        )
+        sa_column=Column(pg.TIMESTAMP(timezone=True), nullable=False, onupdate=func.now())
+    )
+
+    # ✅ FIXED: Specify foreign_keys on BOTH sides using bracket notation
+    created_by_user: "User" = Relationship(
+        back_populates="tickets_created",
+        sa_relationship_kwargs={
+            "lazy": "joined",
+            "foreign_keys": "[Ticket.created_by]"
+        }
+    )
+    assigned_to_user: Optional["User"] = Relationship(
+        back_populates="tickets_assigned",
+        sa_relationship_kwargs={
+            "lazy": "joined",
+            "foreign_keys": "[Ticket.assigned_to]"
+        }
     )

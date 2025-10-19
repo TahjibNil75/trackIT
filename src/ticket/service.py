@@ -4,7 +4,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from src.db.models.ticket import Ticket, TicketStatus
 from src.db.models.user import User, UserRole
 from typing import Optional
-from sqlmodel import select, desc
+from sqlmodel import select, desc, delete
 
 
 class TicketService:
@@ -48,6 +48,19 @@ class TicketService:
         ticket = result.scalar_one_or_none()  # fix: ✅ returns Ticket instance
         return ticket if ticket is not None else None
     
+    async def delete_ticket(
+            self,
+            ticket_id : uuid.UUID,
+            session : AsyncSession
+    ):
+        ticket = await self.get_ticket(ticket_id, session)
+        if not ticket:
+            return None
+        
+        await session.delete(ticket)
+        await session.commit()
+        return True
+    
     async def update_ticket(
             self,
             ticket_id : uuid.UUID,
@@ -81,6 +94,37 @@ class TicketService:
             return True, ticket # ✅ same here
         
         return False, "You do not have permission to modify this ticket."
+    
+    async def can_view_ticket(
+            self, 
+            user : User,
+            ticket : Ticket
+    ) -> bool:
+        if ticket.created_by == user.user_id:
+            return True
+        if user.role in [UserRole.ADMIN, UserRole.IT_SUPPORT, UserRole.MANAGER]:
+            return True
         
+        return False
+        
+    async def get_user_tickets(
+            self,
+            user_id : uuid.UUID,
+            session : AsyncSession,
+            skip : int = 0,
+            limit : int = 10,
+    ):
+        statement = (
+            select(Ticket)
+            .where(Ticket.created_by == user_id)
+            .order_by(desc(Ticket.created_at))
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await session.execute(statement)
+        tickets = result.scalars().all()
+        return tickets
+
+    
 
 

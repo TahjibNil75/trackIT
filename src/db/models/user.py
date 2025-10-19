@@ -7,12 +7,16 @@ from sqlalchemy import(
     ForeignKey,
 )
 from sqlmodel import SQLModel, Field, Relationship
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime
 import uuid
 import enum
 from uuid import UUID
 import sqlalchemy.dialects.postgresql as pg
+
+# TYPE_CHECKING prevents circular imports:
+if TYPE_CHECKING:
+    from .ticket import Ticket
 
 
 class UserRole(enum.Enum):
@@ -70,3 +74,18 @@ class User(SQLModel, table=True):
             onupdate=func.now(),
         )
     )
+
+    #  Add relationships 
+    # ✅ This was required for get ticekt api to access
+    tickets_created: List["Ticket"] = Relationship(
+        back_populates="created_by_user",
+        sa_relationship_kwargs={"foreign_keys": "[Ticket.created_by]"},
+    )
+    tickets_assigned: List["Ticket"] = Relationship(
+        back_populates="assigned_to_user",
+        sa_relationship_kwargs={"foreign_keys": "[Ticket.assigned_to]"},
+    )
+
+
+
+

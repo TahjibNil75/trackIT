@@ -1,8 +1,18 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 import uuid
 from typing import Optional, List
 from src.db.models.ticket import TicketStatus, TicketPriority, IssueType
+
+
+
+class UserInfo(BaseModel):
+    user_id : uuid.UUID
+    email : str
+    username : str
+    model_config = ConfigDict(
+        from_attributes=True  # ✅ Allows SQLModel → Pydantic conversion
+    )
 
 
 class TicketResponse(BaseModel):
@@ -16,12 +26,15 @@ class TicketResponse(BaseModel):
     assigned_to : Optional[uuid.UUID]
     created_at : datetime
     updated_at : datetime
+    
 
 class TicketDetails(TicketResponse):
     # Hint : Uncomment when we implement these relationships
     # replies: List["ReplyModel"] = []
     # attachments: List["AttachmentModel"] = []
     # ai_summaries: List["AISummaryModel"] = []
+    created_by_user : UserInfo
+    assigned_to_user : Optional[UserInfo] = None
     pass
 
 
