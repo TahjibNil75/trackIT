@@ -5,6 +5,7 @@ from fastapi import status, Depends, Request
 from .utils import decode_token
 from sqlmodel.ext.asyncio.session import AsyncSession 
 from src.db.main import get_session
+from src.db.models import User
 
 user_service = UserService()
 
@@ -71,3 +72,19 @@ async def get_current_user(
     user = await user_service.get_user_by_email(user_email, session)
     return user
 
+
+def role_checker(allowed_roles : list[str]):
+    async def verify(user : User = Depends(get_current_user)):
+        if not User:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User is not Authenticated",
+            )
+        user_role = getattr(user.role, "value", user.role)
+        if user_role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access forbidden. Allowed role : {allowed_roles}"
+            )
+        return user
+    return verify

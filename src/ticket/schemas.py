@@ -6,13 +6,6 @@ from src.db.models.ticket import TicketStatus, TicketPriority, IssueType
 
 
 
-class UserInfo(BaseModel):
-    user_id : uuid.UUID
-    email : str
-    username : str
-    model_config = ConfigDict(
-        from_attributes=True  # ✅ Allows SQLModel → Pydantic conversion
-    )
 
 
 class TicketResponse(BaseModel):
@@ -33,8 +26,6 @@ class TicketDetails(TicketResponse):
     # replies: List["ReplyModel"] = []
     # attachments: List["AttachmentModel"] = []
     # ai_summaries: List["AISummaryModel"] = []
-    created_by_user : UserInfo
-    assigned_to_user : Optional[UserInfo] = None
     pass
 
 
@@ -69,13 +60,3 @@ class TicketUpdateRequest(BaseModel):
 
 class TicketStatusModel(BaseModel):
     status : TicketStatus
-
-class UserInfo(BaseModel):
-    user_id : uuid.UUID
-    email : str
-    username : str
-    full_name : Optional[str]
-
-# class TicketWithUserList(TicketBase):
-#     created_by : UserInfo
-#     assigned_to : Optional[UserInfo]
