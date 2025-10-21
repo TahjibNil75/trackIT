@@ -1,34 +1,60 @@
-from fastapi import APIRouter, Depends, status, HTTPException
-from .service import TicketService, TicketCreateRequest
-from src.auth.dependencies import role_checker, AccessTokenBearer
-from .schemas import TicketDetails
+from fastapi import APIRouter, Depends, status
 from sqlmodel.ext.asyncio.session import AsyncSession
+from uuid import UUID
+
+from .service import TicketService, TicketCreateRequest, TicketUpdateRequest
+from .schemas import TicketDetails
+from src.auth.dependencies import role_checker, AccessTokenBearer
 from src.db.main import get_session
-
-
 
 
 ticket_router = APIRouter()
 ticket_service = TicketService()
 
-
-AllUsers = Depends(role_checker(
-    ["user", "manager", "it_support", "admin"]
-))
-
+AllUsers = Depends(role_checker(["user", "manager", "it_support", "admin"]))
+PrivilegedRoles = Depends(role_checker(["admin", "manager", "it_support"]))
 
 
 @ticket_router.post(
     "/create",
     status_code=status.HTTP_201_CREATED,
-    response_model= TicketDetails,
-    dependencies=[AllUsers]
+    response_model=TicketDetails,
+    dependencies=[AllUsers],
 )
 async def create_ticket(
-    ticket_data : TicketCreateRequest,
-    session : AsyncSession = Depends(get_session),
-    token_details: dict = Depends(AccessTokenBearer()),
+    ticket_data: TicketCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
 ):
-    user_id = token_details["user"]["user_id"]
-    return await ticket_service.create_ticket(ticket_data, user_id,session)
-    
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.create_ticket(ticket_data, user_id, session)
+
+
+@ticket_router.patch(
+    "/update/{ticket_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketDetails,
+    dependencies=[AllUsers],
+)
+async def update_ticket(
+    ticket_id: UUID,
+    ticket_data: TicketUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
+):
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.update_ticket(ticket_id, ticket_data, session, user_id)
+
+
+@ticket_router.get(
+    "/my-tickets",
+    status_code=status.HTTP_200_OK,
+    response_model=list[TicketDetails],
+    dependencies=[AllUsers],
+)
+async def get_my_tickets(
+    session : AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
+):
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.get_user_tickets(user_id, session)

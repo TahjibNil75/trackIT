@@ -19,6 +19,7 @@ class TicketResponse(BaseModel):
     assigned_to : Optional[uuid.UUID]
     created_at : datetime
     updated_at : datetime
+
     
 
 class TicketDetails(TicketResponse):
