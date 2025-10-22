@@ -100,4 +100,38 @@ class TicketService:
         tickets = result.scalars().all()   # ✅ FIXED
         return tickets
     
+    async def delete_ticket(
+            self,
+            ticket_id: UUID,
+            session: AsyncSession,
+            user_id: UUID,
+    ):
+        # Fetch ticket
+        statement = select(Ticket).where(Ticket.ticket_id == ticket_id)
+        ticket = (await session.execute(statement)).scalar_one_or_none()
 
+        if not ticket:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Ticket not found."
+            )
+        
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found."
+            )
+        
+        allowed_roles = ["admin", "manager", "it_support"]
+
+        if str(ticket.created_by) != str(user_id) and user.role.value.lower() not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to delete this ticket."
+            )
+        await session.delete(ticket)
+        await session.commit()
+        return None

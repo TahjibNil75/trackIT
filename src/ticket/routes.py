@@ -58,3 +58,16 @@ async def get_my_tickets(
 ):
     user_id = current_user["user"]["user_id"]
     return await ticket_service.get_user_tickets(user_id, session)
+
+@ticket_router.delete(
+    "/{ticket_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[AllUsers],
+)
+async def delete_ticket(
+    ticket_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
+):
+    user_id = current_user["user"]["user_id"] 
+    return await ticket_service.delete_ticket(ticket_id, session, user_id)
