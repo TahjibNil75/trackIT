@@ -3,6 +3,10 @@ from src.db.session import engine
 from sqlmodel import SQLModel
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker 
+from .models.user import User, UserRole
+from sqlalchemy import select
+from src.auth.utils import generate_hash_password
+
 
 
 # Initialize database and create tables
@@ -13,6 +17,8 @@ async def init_db():
         await conn.run_sync(SQLModel.metadata.create_all)
         print("Database connection established and tables created successfully!")
 
+    await seed_admin_user()
+
 
 # Provide an async DB session generator
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -20,6 +26,29 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
 
+
+
+async def seed_admin_user():
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
+    async with async_session() as session:
+        result = await session.execute(
+            select(User).where(User.role == UserRole.ADMIN)
+        )
+        admin = result.scalars().first()
+        if admin:
+            print("Admin user already exists. Skipping seeding.")
+            return
+        
+        admin_user = User(
+            username="admin",
+            email="admin@gmail.com",
+            full_name="Admin User",
+            password_hash=generate_hash_password("Admin@123" ),
+            role=UserRole.ADMIN,
+        )
+        session.add(admin_user)
+        await session.commit()
+        print("Admin user created successfully.")
 
 
 
