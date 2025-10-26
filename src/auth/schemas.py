@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from src.errors import PasswordMismatchError
+from src.db.models.user import UserRole
 
 
 class UserCreateModel(BaseModel):
@@ -53,9 +54,12 @@ class UserResponseModel(BaseModel):
     username : str
     email : str
     full_name : Optional[str]
-    role : str
     created_at : datetime
     updated_at : datetime
+
+    role : UserRole
+    class Config:
+        use_enum_values = True
 
 class UserLoginModel(BaseModel):
     username : str = Field(

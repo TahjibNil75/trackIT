@@ -5,6 +5,7 @@ from sqlalchemy import(
     String,
     func,
     ForeignKey,
+    Boolean,
 )
 from sqlmodel import SQLModel, Field, Relationship
 from typing import List, Optional, TYPE_CHECKING
@@ -57,6 +58,14 @@ class User(SQLModel, table=True):
             ),
             nullable=False,
             default=UserRole.USER,
+        )
+    )
+    is_active: bool = Field(
+        default=True,  # <-- This ensures SQLAlchemy sets True at insert time
+        sa_column=Column(
+            Boolean,
+            nullable=False,
+            server_default="true"  # DB-level default
         )
     )
     created_at: datetime = Field(

@@ -96,6 +96,7 @@ async def login(
             "user": {
                 "email": user.email,
                 "user_id": str(user.user_id),
+                "role": user.role.value,
             }
         }
     )

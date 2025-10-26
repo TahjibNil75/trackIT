@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from src.db.main import init_db
 from src.auth.routes import auth_router
 from src.ticket.routes import ticket_router
+from src.user.routes import user_management_router
 
 
 
@@ -28,3 +29,4 @@ def root():
 
 _app.include_router(auth_router, prefix=f"{version_prefix}/auth", tags=["Auth"])
 _app.include_router(ticket_router, prefix=f"{version_prefix}/tickets", tags=["Tickets"])
+_app.include_router(user_management_router, prefix=f"{version_prefix}/user", tags=["User Management"])
