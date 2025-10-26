@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, Query
 from .service import UserManagementService
 from src.auth.dependencies import role_checker, AccessTokenBearer
-from .schemas import UserRole, UserRoleUpdateRequest, UserStatusUpdateRequest, UserListResponse
+from .schemas import UserRole, UserRoleUpdateRequest, UserStatusUpdateRequest, UserListResponse, UserResponse
 
 from src.db.main import get_session
 
@@ -65,3 +65,20 @@ async def list_users_by_role(
         page_size=page_size,
         role=role
 )
+
+@user_management_router.patch(
+    "/status/{user_id}",
+    status_code=status.HTTP_200_OK,
+    dependencies=[AdminOnly],
+    response_model= UserResponse,
+)
+async def update_user_status(
+    user_id: str,
+    status_update: UserStatusUpdateRequest,
+    session = Depends(get_session)
+):
+    return await user_management_service.update_status(
+        user_id=user_id,
+        is_active=status_update.is_active,
+        session=session
+    )

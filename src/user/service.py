@@ -74,6 +74,24 @@ class UserManagementService:
             "page": page,
             "page_size": page_size,
         }
+    
+    async def update_status(
+            self,
+            user_id: UUID,
+            is_active: bool,
+            session: AsyncSession,
+    ) -> User:
+        user = await self.get_user_by_id(user_id, session)
+
+        if user.role == UserRole.ADMIN:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot change status of an ADMIN user."
+            )
+        user.is_active = is_active
+        await session.commit()
+        await session.refresh(user)
+        return user
 
         
 
