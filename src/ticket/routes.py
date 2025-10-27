@@ -6,6 +6,7 @@ from .service import TicketService, TicketCreateRequest, TicketUpdateRequest
 from .schemas import TicketDetails
 from src.auth.dependencies import role_checker, AccessTokenBearer
 from src.db.main import get_session
+from src.db.models import User, UserRole
 
 
 ticket_router = APIRouter()
@@ -72,6 +73,7 @@ async def delete_ticket(
     user_id = current_user["user"]["user_id"] 
     return await ticket_service.delete_ticket(ticket_id, session, user_id)
 
+
 @ticket_router.patch(
     "/{ticket_id}/assign/{assigned_to}",
     status_code=status.HTTP_200_OK,
@@ -80,7 +82,12 @@ async def delete_ticket(
 )
 async def assign_ticket(
     ticket_id: UUID,
-    assigned_to : UUID,
-    session : AsyncSession = Depends(get_session),
+    assigned_to: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
 ):
-    return await ticket_service.assign_ticket(ticket_id,assigned_to, session)
+    user_obj = User(
+        user_id=current_user["user"]["user_id"],
+        role=UserRole(current_user["user"]["role"])
+    )
+    return await ticket_service.assign_ticket(ticket_id, assigned_to, user_obj, session)
