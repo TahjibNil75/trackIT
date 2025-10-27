@@ -135,3 +135,43 @@ class TicketService:
         await session.delete(ticket)
         await session.commit()
         return None
+    
+    async def assign_ticket(
+            self,
+            ticket_id : UUID,
+            assigned_to : UUID,
+            session : AsyncSession,
+    ):
+        """Assign ticket to a user (Manager/IT Support only)"""
+        statement = select(User).where(User.user_id == assigned_to)
+        assigned_user = (await session.execute(statement)).scalar_one_or_none()
+
+        if not assigned_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assigned user not found."
+            )
+
+        if assigned_user.role.value not in ["manager", "it_support"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Assigned user must have role MANAGER or IT_SUPPORT."
+            )
+
+        
+        ticket_statement = select(Ticket).where(Ticket.ticket_id == ticket_id)
+        ticket = (await session.execute(ticket_statement)).scalar_one_or_none()
+
+        if not ticket:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Ticket Not Found!!"
+            )
+        
+        ticket.assigned_to = assigned_to
+        await session.commit()
+        await session.refresh(ticket)
+        return ticket
+    
+    # =============== ASSIGNED TICKETS BY STATUS ===============
+

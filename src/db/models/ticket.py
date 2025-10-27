@@ -24,6 +24,10 @@ class TicketStatus(enum.Enum):
     IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
     CLOSED = "closed"
+    APPROVAL_PENDING = "approval_pending"
+    APPROVED = "approved"
+    PENDING = "pending"
+    
 
 class TicketPriority(enum.Enum):
     LOW = "low"

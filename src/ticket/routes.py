@@ -71,3 +71,16 @@ async def delete_ticket(
 ):
     user_id = current_user["user"]["user_id"] 
     return await ticket_service.delete_ticket(ticket_id, session, user_id)
+
+@ticket_router.patch(
+    "/{ticket_id}/assign/{assigned_to}",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketDetails,
+    dependencies=[AllUsers],
+)
+async def assign_ticket(
+    ticket_id: UUID,
+    assigned_to : UUID,
+    session : AsyncSession = Depends(get_session),
+):
+    return await ticket_service.assign_ticket(ticket_id,assigned_to, session)
