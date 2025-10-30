@@ -28,5 +28,5 @@ def root():
     return {"status": "ok"}
 
 _app.include_router(auth_router, prefix=f"{version_prefix}/auth", tags=["Auth"])
-_app.include_router(ticket_router, prefix=f"{version_prefix}/tickets", tags=["Tickets"])
+_app.include_router(ticket_router, prefix=f"{version_prefix}/ticket", tags=["Tickets"])
 _app.include_router(user_management_router, prefix=f"{version_prefix}/user", tags=["User Management"])

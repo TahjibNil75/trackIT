@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from uuid import UUID
 
-from .service import TicketService, TicketCreateRequest, TicketUpdateRequest
-from .schemas import TicketDetails
+from .service import TicketService, TicketCreateRequest, TicketUpdateRequest, TicketStatus
+from .schemas import TicketDetails, TicketStatusModel, TicketPriorityUpdateRequest
 from src.auth.dependencies import role_checker, AccessTokenBearer
 from src.db.main import get_session
 from src.db.models import User, UserRole
@@ -60,6 +60,22 @@ async def get_my_tickets(
     user_id = current_user["user"]["user_id"]
     return await ticket_service.get_user_tickets(user_id, session)
 
+@ticket_router.get(
+        "/{ticket_id}",
+        status_code=status.HTTP_200_OK,
+        response_model=TicketDetails,
+        dependencies=[AllUsers]
+)
+async def get_ticket_by_id(
+    ticket_id: UUID,
+    session : AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
+):
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.get_ticket_by_id(ticket_id,user_id,session)
+
+
+
 @ticket_router.delete(
     "/{ticket_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -91,3 +107,60 @@ async def assign_ticket(
         role=UserRole(current_user["user"]["role"])
     )
     return await ticket_service.assign_ticket(ticket_id, assigned_to, user_obj, session)
+
+
+@ticket_router.patch(
+    "/self-assign/{ticket_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketDetails,
+    dependencies=[PrivilegedRoles]
+)
+async def self_assign(
+    ticket_id : UUID,
+    current_user : dict = Depends(AccessTokenBearer()),
+    session : AsyncSession = Depends(get_session),
+):
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.self_assign(ticket_id, user_id, session)
+
+
+@ticket_router.patch(
+    "/status/{ticket_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketDetails,
+    dependencies=[PrivilegedRoles]
+)
+async def update_ticket_status(
+    ticket_id : UUID,
+    status_data : TicketStatusModel,
+    session : AsyncSession = Depends(get_session),
+    current_user : dict = Depends(AccessTokenBearer())
+):
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.update_ticket_status(
+        ticket_id, 
+        user_id,
+        status_data.status,  # extract the TicketStatus enum
+        session, 
+    )
+
+
+@ticket_router.patch(
+    "/priority/{ticket_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketDetails,
+    dependencies=[PrivilegedRoles]
+)
+async def update_ticket_priority(
+    ticket_id : UUID,
+    priority_data : TicketPriorityUpdateRequest,
+    session : AsyncSession = Depends(get_session),
+    current_user : dict = Depends(AccessTokenBearer())
+):
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.update_ticket_priority(
+        ticket_id,
+        user_id,
+        priority_data.priority,
+        session
+    )

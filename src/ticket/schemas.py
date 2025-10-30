@@ -61,3 +61,6 @@ class TicketUpdateRequest(BaseModel):
 
 class TicketStatusModel(BaseModel):
     status : TicketStatus
+
+class TicketPriorityUpdateRequest(BaseModel):
+    priority : TicketPriority

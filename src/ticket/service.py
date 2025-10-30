@@ -4,7 +4,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from uuid import UUID
 
-from src.db.models.ticket import Ticket, TicketStatus
+from src.db.models.ticket import Ticket, TicketStatus, TicketPriority
 from src.db.models.user import User
 from src.ticket.schemas import TicketCreateRequest, TicketUpdateRequest
 
@@ -50,6 +50,49 @@ class TicketService:
         await session.commit()
         await session.refresh(new_ticket)
         return new_ticket
+    
+    
+    async def get_ticket_by_id(
+    self,
+    ticket_id: UUID,
+    user_id: UUID,
+    session: AsyncSession,
+) -> Ticket:
+    # Fetch ticket
+        ticket = (await session.execute(
+            select(Ticket).where(Ticket.ticket_id == ticket_id)
+        )).scalar_one_or_none()
+
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+
+        # Fetch user
+        user = (await session.execute(
+            select(User).where(User.user_id == user_id)
+        )).scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Check access permissions
+        # Access granted if:
+        #     - user is admin", "manager", "it_support" OR
+        #     - user created the ticket OR
+        #     - ticket has an assignee AND user is that assignee
+        privileged_roles = {"admin", "manager", "it_support"}
+        has_access = (
+            user.role.value.lower() in privileged_roles or
+            str(ticket.created_by) == str(user_id) or
+            (ticket.assigned_to and str(ticket.assigned_to) == str(user_id))
+        )
+
+        if not has_access:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to view this ticket."
+            )
+
+        return ticket
 
 
     async def update_ticket(
@@ -175,3 +218,137 @@ class TicketService:
         await session.commit()
         await session.refresh(ticket)
         return ticket
+    
+    async def self_assign(
+            self,
+            ticket_id : UUID,
+            user_id : UUID,
+            session : AsyncSession,
+    ) -> Ticket:
+        ticket = (await session.execute(
+            select(Ticket).where(Ticket.ticket_id == ticket_id)
+        )).scalar_one_or_none()
+        if not ticket:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tickets Not Found"
+            )
+        
+
+        user = (await session.execute(
+            select(User).where(User.user_id == user_id)
+        )).scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User Not found"
+            )
+        
+        priviledged_roles = {"admin", "manager", "it_support"}
+        if user.role.value.lower() not in priviledged_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are now allowed to perform this action"
+            )
+        
+        ticket.assigned_to = user_id
+        await session.commit()
+        await session.refresh(ticket)
+        return ticket
+        
+    
+    async def update_ticket_status(
+            self,
+            ticket_id : UUID,
+            user_id : UUID,
+            new_status : TicketStatus, # ✔ enum, not Pydantic model
+            session : AsyncSession,
+    ) -> Ticket:
+        ticket = (await session.execute(
+            select(Ticket).where(Ticket.ticket_id == ticket_id)
+        )).scalar_one_or_none()
+        if not ticket:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Ticket Not found"
+            )
+        
+        user = (await session.execute(
+            select(User).where(User.user_id == user_id)
+        )).scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found."
+            )
+        
+        user_role = user.role.value.lower()
+        allowed_statuses = None
+        if user_role == "manager":
+            allowed_statuses = {
+                TicketStatus.APPROVAL_PENDING,
+                TicketStatus.APPROVED
+            }
+
+        if allowed_statuses and new_status not in allowed_statuses:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to update ticket status."
+            )
+        elif user_role not in ["admin", "it_support"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to update ticket status."
+            )
+
+
+        ticket.status = new_status
+        await session.commit()
+        await session.refresh(ticket)
+        return ticket
+    
+    async def update_ticket_priority(
+            self,
+            ticket_id : UUID,
+            user_id : UUID,
+            new_priority : TicketPriority,
+            session : AsyncSession
+
+    )-> Ticket:
+        
+        ticket = (await session.execute(
+            select(Ticket).where(Ticket.ticket_id == ticket_id)
+        )).scalar_one_or_none()
+        if not ticket:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Ticket Not found"
+            )
+        
+        user = (await session.execute(
+            select(User).where(User.user_id == user_id)
+        )).scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found."
+            )
+        
+        user_role = user.role.value.lower()
+        if user_role not in ["admin", "it_support", "manager"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to update ticket status."
+            )
+        
+        ticket.priority = new_priority
+        await session.commit()
+        await session.refresh(ticket)
+        return ticket
+        
+
+        
+
+
+
+
