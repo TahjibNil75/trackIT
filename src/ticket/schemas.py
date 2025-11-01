@@ -58,9 +58,5 @@ class TicketUpdateRequest(BaseModel):
     priority : Optional[TicketPriority] = None
     types_of_issue : Optional[IssueType] = None
     assigned_to : Optional[uuid.UUID] = None
+    status: Optional[TicketStatus] = None  
 
-class TicketStatusModel(BaseModel):
-    status : TicketStatus
-
-class TicketPriorityUpdateRequest(BaseModel):
-    priority : TicketPriority
