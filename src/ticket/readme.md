@@ -73,3 +73,33 @@ FastAPI evaluates routes in the order they're defined. When you have:
 
 By putting specific literal paths before parameterized ones, FastAPI will match /my-tickets exactly before trying to interpret it as a parameter.
 Your service code looks fine—this is purely a routing configuration issue!
+
+
+postman json call
+```json
+ ### Examples:
+    
+    Update only priority (requires privileged role):
+    ```json
+    {
+        "priority": "high"
+    }
+    ```
+    
+    Update multiple fields:
+    ```json
+    {
+        "subject": "Updated subject",
+        "status": "in_progress",
+        "priority": "high",
+        "assigned_to": "123e4567-e89b-12d3-a456-426614174000"
+    }
+    ```
+    
+    Unassign a ticket:
+    ```json
+    {
+        "assigned_to": null
+    }
+    ```
+```
