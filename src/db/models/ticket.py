@@ -17,6 +17,7 @@ import sqlalchemy.dialects.postgresql as pg
 # TYPE_CHECKING prevents circular imports
 if TYPE_CHECKING:
     from .user import User
+    from .comment import Comment
 
 
 class TicketStatus(enum.Enum):
@@ -27,7 +28,7 @@ class TicketStatus(enum.Enum):
     APPROVAL_PENDING = "approval_pending"
     APPROVED = "approved"
     PENDING = "pending"
-    
+
 
 class TicketPriority(enum.Enum):
     LOW = "low"
@@ -112,4 +113,7 @@ class Ticket(SQLModel, table=True):
             "lazy": "joined",
             "foreign_keys": "[Ticket.assigned_to]"
         }
+    )
+    comments: List["Comment"] = Relationship(
+        back_populates="ticket",
     )

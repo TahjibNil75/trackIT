@@ -18,6 +18,7 @@ import sqlalchemy.dialects.postgresql as pg
 # TYPE_CHECKING prevents circular imports:
 if TYPE_CHECKING:
     from .ticket import Ticket
+    from .comment import Comment
 
 
 class UserRole(enum.Enum):
@@ -93,6 +94,10 @@ class User(SQLModel, table=True):
     tickets_assigned: List["Ticket"] = Relationship(
         back_populates="assigned_to_user",
         sa_relationship_kwargs={"foreign_keys": "[Ticket.assigned_to]"},
+    )
+
+    comments : List["Comment"] = Relationship(
+        back_populates="user",
     )
 
 
