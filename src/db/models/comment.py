@@ -4,11 +4,17 @@ from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 import uuid
 import sqlalchemy.dialects.postgresql as pg
+import enum
 
 # TYPE_CHECKING prevents circular imports
 if TYPE_CHECKING:
     from .user import User
     from .ticket import Ticket
+
+
+class CommentVisibility(enum.Enum):
+    PUBLIC = "public"
+    INTERNAL = "internal"
 
 class Comment(SQLModel, table=True):
     __tablename__ = "comments"
@@ -43,6 +49,14 @@ class Comment(SQLModel, table=True):
             pg.UUID(as_uuid=True),
             ForeignKey("users.user_id", ondelete="CASCADE"),
             nullable=False
+        )
+    )
+
+    visibility : CommentVisibility = Field(
+        sa_column= Column(
+            pg.ENUM(CommentVisibility, name = "comment_visibility", create_type = True), # create_type is bool
+            nullable=False,
+            default= CommentVisibility.PUBLIC
         )
     )
 
