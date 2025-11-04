@@ -50,7 +50,7 @@ class TicketService:
 
 
 
-    async def authorize_user(
+    async def authorize_user( ## Fix: get authorize user
             self,
             user_id : UUID,
             session : AsyncSession
