@@ -51,7 +51,7 @@ async def update_ticket(
 @ticket_router.get(
     "/my-tickets",
     status_code=status.HTTP_200_OK,
-    response_model=list[TicketDetails],
+    response_model=list[TicketResponse],
     dependencies=[AllUsers],
 )
 async def get_my_tickets(
