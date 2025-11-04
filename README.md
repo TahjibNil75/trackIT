@@ -18,7 +18,7 @@ trackIT is a ticket management system built with FastAPI
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/TahjibNil75/trackIT.git
 cd trackIT
 ```
 
