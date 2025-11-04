@@ -9,6 +9,11 @@ from src.db.models.user import User
 from src.ticket.schemas import TicketCreateRequest, TicketUpdateRequest
 from src.errors import TicketNotFoundError, UserNotFoundError, UnauthorizedError, InvalidTicketUpdateError, TicketPriorityUpdateError, TicketStatusUpdateError, TicketAssignmentError, BadRequestError
 
+from sqlalchemy.orm import selectinload  ## required for fetching comments
+from src.db.models.comment import Comment
+
+
+
 
 PRIVILEGED_ROLES = {"admin", "manager", "it_support"}
 def is_privileged(user: User) -> bool:
@@ -150,18 +155,40 @@ class TicketService:
     
 
     
-    async def get_user_ticket(
-            self,
-            ticket_id: UUID,
-            user_id : UUID,
-            session: AsyncSession,
-    ):
-        ticket = await self.get_ticket(ticket_id,session)
-        user = await self.get_user(user_id,session)
+    # async def get_user_ticket(
+    #         self,
+    #         ticket_id: UUID,
+    #         user_id : UUID,
+    #         session: AsyncSession,
+    # ):
+    #     ticket = await self.get_ticket(ticket_id,session)
 
-        has_access = self.check_ticket_access(ticket, user, user_id)
-        if not has_access:
-            raise UnauthorizedError()
+    #     user = await self.get_user(user_id,session)
+
+    #     has_access = self.check_ticket_access(ticket, user, user_id)
+    #     if not has_access:
+    #         raise UnauthorizedError()
+    #     return ticket
+
+
+    async def get_user_ticket(
+        self,
+        ticket_id: UUID,
+        user_id: UUID,
+        session: AsyncSession,
+    ):
+        result = await session.execute(
+            select(Ticket)
+            .options(selectinload(Ticket.comments))  # eager-load comments
+            .where(Ticket.ticket_id == ticket_id)
+        )
+        ticket = result.scalar_one_or_none()
+        if not ticket:
+            raise TicketNotFoundError()
+
+        user = await self.get_user(user_id, session)
+        self.check_ticket_access(ticket, user, user_id)
+        
         return ticket
     
 

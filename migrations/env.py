@@ -10,6 +10,7 @@ from alembic import context
 # Import models here to ensure they are registered
 from src.db.models.user import User
 from src.db.models.ticket import Ticket
+from src.db.models.comment import Comment
 
 from sqlmodel import SQLModel
 from src.config import Config

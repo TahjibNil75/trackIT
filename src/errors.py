@@ -84,3 +84,9 @@ class TicketStatusUpdateError(UnauthorizedError):
 class TicketAssignmentError(UnauthorizedError):
     def __init__(self, message: str = "You do not have permission to assign this ticket."):
         super().__init__(detail=message)
+
+
+# ==================== Ticket-specific Errors ====================
+class CommentNotFoundError(NotFoundError):
+    def __init__(self):
+        super().__init__("Comment")

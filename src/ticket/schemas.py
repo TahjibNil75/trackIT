@@ -3,6 +3,7 @@ from datetime import datetime
 import uuid
 from typing import Optional, List
 from src.db.models.ticket import TicketStatus, TicketPriority, IssueType
+from src.comment.schemas import CommentResponse
 
 
 
@@ -20,6 +21,9 @@ class TicketResponse(BaseModel):
     created_at : datetime
     updated_at : datetime
 
+    class Config:
+        orm_mode = True
+
     
 
 class TicketDetails(TicketResponse):
@@ -27,7 +31,8 @@ class TicketDetails(TicketResponse):
     # replies: List["ReplyModel"] = []
     # attachments: List["AttachmentModel"] = []
     # ai_summaries: List["AISummaryModel"] = []
-    pass
+    comments : List[CommentResponse] = []
+    
 
 
 class TicketCreateRequest(BaseModel):
