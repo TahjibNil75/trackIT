@@ -103,3 +103,21 @@ postman json call
     }
     ```
 ```
+
+
+## Confusion:
+```py
+    async def attach_files_to_ticket(
+            self,
+            ticket : Ticket,
+            # """
+            # Here, ticket is the full Ticket object, not just its ID.
+            # We need the actual Ticket instance because:
+            # The Attachment model requires a ticket_id.
+            # Using ticket.ticket_id ensures we link the file to the correct ticket.
+            # Often in your workflow, you just created or fetched the ticket object, so passing the object avoids an extra DB query to fetch it by ID.
+            # """
+            files : list[UploadFile],
+            session : AsyncSession
+    ):
+```

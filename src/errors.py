@@ -42,11 +42,12 @@ class NotFoundError(HTTPException):
 
 
 class UnauthorizedError(HTTPException):
-    def __init__(self):
+    def __init__(self, message: str = "You do not have permission to perform this action."):
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to perform this action."
+            detail=message
         )
+
 
 # ==================== Ticket-specific Errors ====================
 class TicketNotFoundError(NotFoundError):
@@ -73,7 +74,8 @@ class TicketPermissionError(UnauthorizedError):
 
 class TicketPriorityUpdateError(UnauthorizedError):
     def __init__(self, message: str = "Only admin, manager, or IT support can update ticket priority."):
-        super().__init__(detail=message)
+        super().__init__(message)
+
 
 
 class TicketStatusUpdateError(UnauthorizedError):
