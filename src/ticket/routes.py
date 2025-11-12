@@ -34,15 +34,27 @@ PrivilegedRoles = Depends(role_checker(["admin", "manager", "it_support"]))
 #     return await ticket_service.create_ticket(ticket_data, user_id, session)
 
 async def create_ticket(
-    ticket_data: str = Form(...),
+    subject: str = Form(..., min_length=5, max_length=200),
+    description: str = Form(..., min_length=10),
+    types_of_issue: str = Form(...),
+    priority: str = Form(default="medium"),
+    assigned_to: Optional[str] = Form(None),
     files: Optional[list[UploadFile]] = File(None),
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(AccessTokenBearer()),
 ):
     user_id = current_user["user"]["user_id"]
-    ticket_object = TicketCreateRequest(
-        **json.loads(ticket_data)
-    )
+    ticket_dict = {
+        "subject": subject,
+        "description": description,
+        "types_of_issue": types_of_issue,
+        "priority": priority,
+    }
+    
+    if assigned_to is not None:
+        ticket_dict["assigned_to"] = UUID(assigned_to) if assigned_to else None
+
+    ticket_object = TicketCreateRequest(**ticket_dict)
 
     return await ticket_service.create_ticket_with_attachments(
         ticket_object,
@@ -68,16 +80,35 @@ async def create_ticket(
 #     return await ticket_service.update_ticket(ticket_id, ticket_data, user_id, session)
 
 async def update_ticket(
-    ticket_id : UUID,
-    ticket_data: str = Form(...),
+    ticket_id: UUID,
+    subject: Optional[str] = Form(None, min_length=5, max_length=200),
+    description: Optional[str] = Form(None, min_length=10),
+    types_of_issue: Optional[str] = Form(None),
+    priority: Optional[str] = Form(None),
+    status_field: Optional[str] = Form(None, alias="status"),
+    assigned_to: Optional[str] = Form(None),
     files: Optional[list[UploadFile]] = File(None),
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(AccessTokenBearer()),
 ):
     user_id = current_user["user"]["user_id"]
-    ticket_object = TicketUpdateRequest(
-        **json.loads(ticket_data)
-    )
+
+    # Build update dict with only provided fields
+    ticket_dict = {}
+    if subject is not None:
+        ticket_dict["subject"] = subject
+    if description is not None:
+        ticket_dict["description"] = description
+    if types_of_issue is not None:
+        ticket_dict["types_of_issue"] = types_of_issue
+    if priority is not None:
+        ticket_dict["priority"] = priority
+    if status_field is not None:
+        ticket_dict["status"] = status_field
+    if assigned_to is not None:
+        ticket_dict["assigned_to"] = UUID(assigned_to) if assigned_to else None
+
+    ticket_object = TicketUpdateRequest(**ticket_dict)
 
     return await ticket_service.update_ticket_with_attachments(
         ticket_id=ticket_id,
