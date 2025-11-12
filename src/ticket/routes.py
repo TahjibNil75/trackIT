@@ -50,7 +50,7 @@ async def create_ticket(
         "types_of_issue": types_of_issue,
         "priority": priority,
     }
-    
+
     if assigned_to is not None:
         ticket_dict["assigned_to"] = UUID(assigned_to) if assigned_to else None
 
@@ -168,3 +168,17 @@ async def delete_ticket(
 ):
     user_id = current_user["user"]["user_id"] 
     return await ticket_service.delete_ticket(ticket_id, user_id, session)
+
+
+@ticket_router.delete(
+    "/attachment/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[AllUsers],
+)
+async def delete_attachment(
+    attachment_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
+):
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.delete_attachment(attachment_id, user_id, session)

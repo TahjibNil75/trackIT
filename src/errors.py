@@ -54,6 +54,10 @@ class TicketNotFoundError(NotFoundError):
     def __init__(self):
         super().__init__("Ticket")
 
+class AttachmentNotFoundError(NotFoundError):
+    def __init__(self):
+        super().__init__("Attachment")
+
 
 class UserNotFoundError(NotFoundError):
     def __init__(self):
