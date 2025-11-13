@@ -9,6 +9,20 @@ from src.comment.schemas import CommentResponse
 
 
 
+
+
+
+class AttachmentResponse(BaseModel):
+    attachment_id : uuid.UUID
+    ticket_id : uuid.UUID
+    file_name : str
+    file_url : str
+    file_type : str
+    uploaded_at : datetime
+
+    class Config:
+        orm_mode = True
+
 class TicketResponse(BaseModel):
     ticket_id : uuid.UUID
     subject : str
@@ -20,6 +34,7 @@ class TicketResponse(BaseModel):
     assigned_to : Optional[uuid.UUID]
     created_at : datetime
     updated_at : datetime
+    attachments: Optional[List[AttachmentResponse]] = []
 
     class Config:
         orm_mode = True
@@ -29,10 +44,22 @@ class TicketResponse(BaseModel):
 class TicketDetails(TicketResponse):
     # Hint : Uncomment when we implement these relationships
     # replies: List["ReplyModel"] = []
-    # attachments: List["AttachmentModel"] = []
     # ai_summaries: List["AISummaryModel"] = []
     comments : List[CommentResponse] = []
     
+class TicketSummaryResponse(BaseModel):
+    ticket_id: uuid.UUID
+    subject: str
+    priority: TicketPriority
+    types_of_issue: IssueType
+    status: TicketStatus
+    created_by: uuid.UUID
+    assigned_to: Optional[uuid.UUID]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
 
 
 class TicketCreateRequest(BaseModel):

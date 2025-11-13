@@ -18,6 +18,7 @@ import sqlalchemy.dialects.postgresql as pg
 if TYPE_CHECKING:
     from .user import User
     from .comment import Comment
+    from .attachment import Attachment
 
 
 class TicketStatus(enum.Enum):
@@ -116,4 +117,11 @@ class Ticket(SQLModel, table=True):
     )
     comments: List["Comment"] = Relationship(
         back_populates="ticket",
+    )
+
+    attachments: list["Attachment"] = Relationship(
+        back_populates="ticket",
+        sa_relationship_kwargs={
+            "cascade": "all, delete"
+        }
     )

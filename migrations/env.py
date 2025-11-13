@@ -11,6 +11,7 @@ from alembic import context
 from src.db.models.user import User
 from src.db.models.ticket import Ticket
 from src.db.models.comment import Comment
+from src.db.models.attachment import Attachment
 
 from sqlmodel import SQLModel
 from src.config import Config

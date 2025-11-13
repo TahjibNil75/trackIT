@@ -11,6 +11,15 @@ from src.errors import TicketNotFoundError, UserNotFoundError, UnauthorizedError
 
 from sqlalchemy.orm import selectinload  ## required for fetching comments
 from src.db.models.comment import Comment
+from fastapi import UploadFile
+from src.utils.s3_utils import upload_file_to_s3
+from src.db.models.attachment import Attachment
+from typing import Optional
+
+from fastapi_pagination.ext.sqlalchemy import paginate
+
+
+
 
 
 
@@ -90,29 +99,28 @@ class TicketService:
 
 
     def validate_ticket_update_permission(
-            self,
-            update_data: dict,
-            user: User,
-            ticket: Ticket,
-            user_id : UUID
-    ):
+        self,
+        update_data: dict,
+        user: User,
+        ticket: Ticket,
+        user_id : UUID
+):
         is_creator = str(ticket.created_by) == str(user_id)
         user_is_privileged = is_privileged(user)
 
-        basic_fields = {
-            "subject", "description", "types_of_issue"
-        }
-        if any(fields in update_data for fields in basic_fields) and not (is_creator or user_is_privileged):
+        basic_fields = {"subject", "description", "types_of_issue"}
+        if any(field in update_data for field in basic_fields) and not (is_creator or user_is_privileged):
             raise InvalidTicketUpdateError()
         
-        if "priority" in update_data and not user_is_privileged:
+        if "priority" in update_data and update_data["priority"] != ticket.priority and not user_is_privileged:
             raise TicketPriorityUpdateError()
         
-        if "status" in update_data and not user_is_privileged:
+        if "status" in update_data and update_data["status"] != ticket.status and not user_is_privileged:
             raise TicketStatusUpdateError()
         
-        if "assigned_to" in update_data and not (is_creator or is_privileged):
+        if "assigned_to" in update_data and not (is_creator or is_privileged(user)):
             raise TicketAssignmentError()
+
         
 
 
@@ -154,21 +162,6 @@ class TicketService:
         return new_ticket
     
 
-    
-    # async def get_user_ticket(
-    #         self,
-    #         ticket_id: UUID,
-    #         user_id : UUID,
-    #         session: AsyncSession,
-    # ):
-    #     ticket = await self.get_ticket(ticket_id,session)
-
-    #     user = await self.get_user(user_id,session)
-
-    #     has_access = self.check_ticket_access(ticket, user, user_id)
-    #     if not has_access:
-    #         raise UnauthorizedError()
-    #     return ticket
 
 
     async def get_user_ticket(
@@ -259,6 +252,76 @@ class TicketService:
         await session.delete(ticket)
         await session.commit()
         return None
+    
+    async def attach_files_to_ticket(
+    self,
+    ticket: Ticket,
+    files: list[UploadFile],
+    session: AsyncSession,
+):
+        attachments_list = []  
+
+        for file in files:
+            file_url = await upload_file_to_s3(file)
+            attachment = Attachment(
+                ticket_id=ticket.ticket_id,
+                file_name=file.filename,
+                file_url=file_url,
+                file_type=file.content_type,
+            )
+            session.add(attachment)
+            attachments_list.append(attachment)
+
+        await session.commit()
+        return attachments_list
+
+    
+    async def create_ticket_with_attachments(
+            self,
+            ticket_data : TicketCreateRequest,
+            user_id : UUID,
+            files : Optional[list[UploadFile]],
+            session : AsyncSession,
+    ):
+        ticket = await self.create_ticket(ticket_data, user_id, session)
+        if files:
+            await self.attach_files_to_ticket(ticket, files, session)
+
+        result = await session.execute(
+            select(Ticket)
+            .options(
+                selectinload(Ticket.attachments),
+            )
+            .where(Ticket.ticket_id == ticket.ticket_id)
+        )
+
+        ticket = result.scalar_one()
+        return ticket
+    
+    async def update_ticket_with_attachments(
+            self,
+            ticket_id : UUID,
+            ticket_data : TicketUpdateRequest,
+            user_id : UUID,
+            files : Optional[list[UploadFile]],
+            session : AsyncSession
+    ) -> Ticket:
+        ticket = await self.update_ticket(ticket_id, ticket_data, user_id, session)
+        if files:
+            await self.attach_files_to_ticket(ticket, files, session)
+
+        # Reload ticket with attachments
+        result = await session.execute(
+            select(Ticket)
+            .options(selectinload(Ticket.attachments))
+            .where(Ticket.ticket_id == ticket.ticket_id)
+        )
+
+        ticket = result.scalar_one()
+        return ticket
+
+            
+
 
 
 
