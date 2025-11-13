@@ -92,3 +92,15 @@ class TicketUpdateRequest(BaseModel):
     assigned_to : Optional[uuid.UUID] = None
     status: Optional[TicketStatus] = None  
 
+
+class TicketHistoryResponse(BaseModel):
+    history_id : uuid.UUID
+    ticket_id : uuid.UUID
+    action_type : str
+    old_value : Optional[str]
+    new_value : Optional[str]
+    changed_by : uuid.UUID
+    changed_at : datetime
+
+    class Config:
+        orm_mode = True

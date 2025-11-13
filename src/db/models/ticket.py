@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from .user import User
     from .comment import Comment
     from .attachment import Attachment
+    from .ticket_history import TicketHistory
 
 
 class TicketStatus(enum.Enum):
@@ -124,4 +125,9 @@ class Ticket(SQLModel, table=True):
         sa_relationship_kwargs={
             "cascade": "all, delete"
         }
+    )
+
+    history: List["TicketHistory"] = Relationship(
+        back_populates="ticket",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
