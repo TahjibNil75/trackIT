@@ -14,9 +14,10 @@ from src.db.models.comment import Comment
 from fastapi import UploadFile
 from src.utils.s3_utils import upload_file_to_s3
 from src.db.models.attachment import Attachment
+from src.db.models.ticket_history import TicketHistory
+
 from typing import Optional
 
-from fastapi_pagination.ext.sqlalchemy import paginate
 
 
 
@@ -146,6 +147,29 @@ class TicketService:
         if not attachment:
             raise AttachmentNotFoundError()
         return attachment
+    
+
+    async def log_ticket_history(
+            self,
+            ticket_id : UUID,
+            action_type : str,
+            old_value : Optional[str],
+            new_value : Optional[str],
+            changed_by : UUID,
+            session : AsyncSession
+    ):
+        history_entry = TicketHistory(
+            ticket_id=ticket_id,
+            action_type=action_type,
+            old_value=old_value,
+            new_value=new_value,
+            changed_by=changed_by,
+            changed_at=datetime.utcnow()
+        )
+        session.add(history_entry)
+        await session.commit()
+        await session.refresh(history_entry)
+        return history_entry
         
         # ==================== Main Service Methods ====================
 
@@ -171,6 +195,17 @@ class TicketService:
         session.add(new_ticket)
         await session.commit()
         await session.refresh(new_ticket)
+
+        # Log ticket creation in history
+        await self.log_ticket_history(
+            ticket_id=new_ticket.ticket_id,
+            action_type="created",
+            old_value=None,
+            new_value=f"Ticket created with status: {new_ticket.status.value}",
+            changed_by=user_id,
+            session=session
+        )
+
         return new_ticket
     
 
@@ -238,8 +273,22 @@ class TicketService:
 
         
         # Apply updates
+        # for field, value in update_data.items():
+        #     setattr(ticket, field, value)
+
         for field, value in update_data.items():
+            old_value = str(getattr(ticket, field))
             setattr(ticket, field, value)
+            new_value = str(value)
+            if old_value != new_value:
+                await self.log_ticket_history(
+                    ticket_id=ticket.ticket_id,
+                    action_type=f"{field}_changed",
+                    old_value=old_value,
+                    new_value=new_value,
+                    changed_by=user_id,
+                    session=session
+                )
 
         ticket.updated_at = datetime.utcnow()
 
@@ -351,6 +400,22 @@ class TicketService:
         await session.delete(attachment)
         await session.commit()
     
+    async def get_ticket_history(
+            self,
+            ticket_id : UUID,
+            user_id : UUID,
+            session : AsyncSession
+    ):
+        ticket = await self.get_ticket(ticket_id, session)
+        user = await self.get_user(user_id, session)
+
+        self.check_ticket_access(ticket, user, user_id)
+
+        result = await session.execute(
+            select(TicketHistory).where(TicketHistory.ticket_id == ticket_id).order_by(TicketHistory.changed_at.desc())
+        )
+        history_entries = result.scalars().all()
+        return history_entries
 
             
 

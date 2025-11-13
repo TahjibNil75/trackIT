@@ -10,6 +10,9 @@ from src.db.models import User, UserRole
 from typing import Optional
 import json
 
+from src.db.models.ticket_history import TicketHistory
+from src.ticket.schemas import TicketHistoryResponse
+
 
 ticket_router = APIRouter()
 ticket_service = TicketService()
@@ -182,3 +185,18 @@ async def delete_attachment(
 ):
     user_id = current_user["user"]["user_id"]
     return await ticket_service.delete_attachment(attachment_id, user_id, session)
+
+
+@ticket_router.get(
+    "/history/{ticket_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=list[TicketHistoryResponse],
+    dependencies=[PrivilegedRoles],
+)
+async def get_ticket_history(
+    ticket_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
+):
+    user_id = current_user["user"]["user_id"]
+    return await ticket_service.get_ticket_history(ticket_id, user_id, session)
