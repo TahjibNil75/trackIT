@@ -7,7 +7,7 @@ from uuid import UUID
 from src.db.models.ticket import Ticket, TicketStatus, TicketPriority
 from src.db.models.user import User
 from src.ticket.schemas import TicketCreateRequest, TicketUpdateRequest
-from src.errors import TicketNotFoundError, UserNotFoundError, UnauthorizedError, InvalidTicketUpdateError, TicketPriorityUpdateError, TicketStatusUpdateError, TicketAssignmentError, BadRequestError
+from src.errors import TicketNotFoundError, UserNotFoundError, UnauthorizedError, InvalidTicketUpdateError, TicketPriorityUpdateError, TicketStatusUpdateError, TicketAssignmentError, BadRequestError, AttachmentNotFoundError
 
 from sqlalchemy.orm import selectinload  ## required for fetching comments
 from src.db.models.comment import Comment
@@ -135,6 +135,18 @@ class TicketService:
             raise UnauthorizedError()
         
 
+    async def get_attachment(
+            self,
+            attachment_id : UUID,
+            session : AsyncSession
+    ) -> Attachment:
+        attachment = (await session.execute(
+            select(Attachment).where(Attachment.attachment_id == attachment_id)
+        )).scalar_one_or_none()
+        if not attachment:
+            raise AttachmentNotFoundError()
+        return attachment
+        
         # ==================== Main Service Methods ====================
 
     async def create_ticket(
@@ -319,6 +331,26 @@ class TicketService:
 
         ticket = result.scalar_one()
         return ticket
+    
+
+    async def delete_attachment(
+            self,
+            attachment_id : UUID,
+            user_id : UUID,
+            session : AsyncSession
+    ):
+        attachment = await self.get_attachment(attachment_id, session)
+        ticket = await self.get_ticket(attachment.ticket_id, session)
+        user = await self.get_user(user_id, session)
+
+        is_creator = str(ticket.created_by) == str(user_id)
+        user_is_admin = user.role.value.lower() == "admin"
+        if not (is_creator or user_is_admin):
+            raise UnauthorizedError()
+        
+        await session.delete(attachment)
+        await session.commit()
+    
 
             
 
