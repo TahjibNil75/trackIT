@@ -100,6 +100,3 @@ class User(SQLModel, table=True):
         back_populates="user",
     )
 
-
-
-

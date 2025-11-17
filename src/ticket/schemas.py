@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-import uuid
+import uuid 
 from typing import Optional, List
 from src.db.models.ticket import TicketStatus, TicketPriority, IssueType
 from src.comment.schemas import CommentResponse
@@ -93,14 +93,24 @@ class TicketUpdateRequest(BaseModel):
     status: Optional[TicketStatus] = None  
 
 
-class TicketHistoryResponse(BaseModel):
-    history_id : uuid.UUID
-    ticket_id : uuid.UUID
-    action_type : str
-    old_value : Optional[str]
-    new_value : Optional[str]
-    changed_by : uuid.UUID
-    changed_at : datetime
+class TicketHistoryListResponse(BaseModel):
+    history_id: uuid.UUID
+    ticket_id: uuid.UUID
+    action_type: str
+    old_value: Optional[str]
+    new_value: Optional[str]
+    changed_by: uuid.UUID
+    changed_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class TicketHistoryPaginatedResponse(BaseModel):
+    histories: List[TicketHistoryListResponse]
+    total: int
+    page: int
+    page_size: int
+
+    class Config:
+        from_attributes = True

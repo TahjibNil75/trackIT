@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, func
 from uuid import UUID
 
 from src.db.models.ticket import Ticket, TicketStatus, TicketPriority
@@ -21,7 +21,7 @@ from typing import Optional
 
 
 
-
+HISTORY_PAGE_SIZE = 10
 
 
 
@@ -400,25 +400,78 @@ class TicketService:
         await session.delete(attachment)
         await session.commit()
     
+    # async def get_ticket_history(
+    #         self,
+    #         ticket_id : UUID,
+    #         user_id : UUID,
+    #         session : AsyncSession
+    # ):
+    #     ticket = await self.get_ticket(ticket_id, session)
+    #     user = await self.get_user(user_id, session)
+
+    #     self.check_ticket_access(ticket, user, user_id)
+
+    #     result = await session.execute(
+    #         select(TicketHistory).where(TicketHistory.ticket_id == ticket_id).order_by(TicketHistory.changed_at.desc())
+    #     )
+    #     history_entries = result.scalars().all()
+    #     return history_entries
+
     async def get_ticket_history(
-            self,
-            ticket_id : UUID,
-            user_id : UUID,
-            session : AsyncSession
-    ):
-        ticket = await self.get_ticket(ticket_id, session)
+        self,
+        ticket_id: UUID,
+        user_id: UUID,
+        session: AsyncSession,
+        status: Optional[TicketStatus] = None,
+        priority: Optional[TicketPriority] = None,
+        changed_by: Optional[UUID] = None,
+        page: int = 1,
+):
         user = await self.get_user(user_id, session)
 
-        self.check_ticket_access(ticket, user, user_id)
+        page = max(page, 1)
+        offset = (page - 1) * HISTORY_PAGE_SIZE
 
-        result = await session.execute(
-            select(TicketHistory).where(TicketHistory.ticket_id == ticket_id).order_by(TicketHistory.changed_at.desc())
+        base_query = (
+            select(TicketHistory)
+            .join(Ticket, Ticket.ticket_id == TicketHistory.ticket_id)
         )
-        history_entries = result.scalars().all()
-        return history_entries
 
-            
+        filters = []
 
+        if not is_privileged(user):
+            filters.append(Ticket.created_by == user_id)
 
+        if ticket_id:
+            filters.append(TicketHistory.ticket_id == ticket_id)
 
+        if status:
+            filters.append(Ticket.status == status)
+        if priority:
+            filters.append(Ticket.priority == priority)
+        if changed_by:
+            filters.append(TicketHistory.changed_by == changed_by)
 
+        if filters:
+            base_query = base_query.where(*filters)
+
+        # Get paginated results
+        history_query = (
+            base_query
+            .order_by(TicketHistory.changed_at.desc())
+            .offset(offset)
+            .limit(HISTORY_PAGE_SIZE)
+        )
+
+        count_query = select(func.count()).select_from(base_query.subquery())
+
+        histories = (await session.execute(history_query)).scalars().all()
+        total_count = (await session.execute(count_query)).scalar_one()
+
+        # IMPORTANT: Return a dictionary, not just the list
+        return {
+            "histories": histories,
+            "total": total_count,
+            "page": page,
+            "page_size": HISTORY_PAGE_SIZE
+        }

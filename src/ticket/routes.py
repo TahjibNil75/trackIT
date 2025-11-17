@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, File, UploadFile,Form
 from sqlmodel.ext.asyncio.session import AsyncSession
 from uuid import UUID
 
-from .service import TicketService, TicketCreateRequest, TicketUpdateRequest, TicketStatus
+from .service import TicketService, TicketCreateRequest, TicketUpdateRequest, TicketStatus, TicketPriority
 from .schemas import TicketDetails, TicketResponse, TicketSummaryResponse
 from src.auth.dependencies import role_checker, AccessTokenBearer
 from src.db.main import get_session
@@ -11,7 +11,7 @@ from typing import Optional
 import json
 
 from src.db.models.ticket_history import TicketHistory
-from src.ticket.schemas import TicketHistoryResponse
+from src.ticket.schemas import TicketHistoryPaginatedResponse
 
 
 ticket_router = APIRouter()
@@ -187,16 +187,45 @@ async def delete_attachment(
     return await ticket_service.delete_attachment(attachment_id, user_id, session)
 
 
+# @ticket_router.get(
+#     "/history/{ticket_id}",
+#     status_code=status.HTTP_200_OK,
+#     response_model=list[TicketHistoryResponse],
+#     dependencies=[PrivilegedRoles],
+# )
+# async def get_ticket_history(
+#     ticket_id: UUID,
+#     session: AsyncSession = Depends(get_session),
+#     current_user: dict = Depends(AccessTokenBearer()),
+# ):
+#     user_id = current_user["user"]["user_id"]
+#     return await ticket_service.get_ticket_history(ticket_id, user_id, session)
+
+
 @ticket_router.get(
     "/history/{ticket_id}",
     status_code=status.HTTP_200_OK,
-    response_model=list[TicketHistoryResponse],
-    dependencies=[PrivilegedRoles],
+    response_model=TicketHistoryPaginatedResponse,
+    dependencies=[AllUsers],
 )
 async def get_ticket_history(
-    ticket_id: UUID,
-    session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(AccessTokenBearer()),
+    ticket_id : UUID,
+    status : Optional[str] = None,
+    priority : Optional[str] = None,
+    changed_by : Optional[UUID] = None,
+    page: int = 1,
+    session : AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer())
 ):
     user_id = current_user["user"]["user_id"]
-    return await ticket_service.get_ticket_history(ticket_id, user_id, session)
+    return await ticket_service.get_ticket_history(
+        ticket_id=ticket_id,
+        user_id=user_id,
+        session=session,
+        status=TicketStatus(status) if status else None,
+        priority=TicketPriority(priority) if priority else None,
+        changed_by=changed_by,
+        page=page
+    )
+
+
