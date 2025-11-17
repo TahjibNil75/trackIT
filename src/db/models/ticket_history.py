@@ -7,6 +7,7 @@ from datetime import datetime
 
 if TYPE_CHECKING:
     from .ticket import Ticket
+    from .user import User
 
 class TicketHistory(SQLModel, table=True):
     __tablename__ = "ticket_history"

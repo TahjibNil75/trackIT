@@ -1,6 +1,10 @@
+## Done:
+
 
 ## TODO:
-- Track Ticket History
+- Track History query parameter need to be add 
+- Dashboard
+- Auto-Summarization: Generate summaries of long comment threads. separate endpoint
 
 ### Less priority Todos:
 - Knowledge Articles
@@ -9,4 +13,11 @@
 - AI/Automation (Future Ready)
     - AI Chatbot: First-level support before human escalation.
 
-    - Auto-Summarization: Generate summaries of long comment threads. separate endpoint
+    
+
+
+<!-- Learning: 
+
+Redis
+Celery
+will use in analytics dashboard -->
