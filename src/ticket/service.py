@@ -463,12 +463,14 @@ class TicketService:
             .limit(HISTORY_PAGE_SIZE)
         )
 
+        # Build a separate query to count total matching records
+        # This is needed for pagination metadata (total pages, etc.)
+        # We use the same base_query (with filters) to ensure accurate count
         count_query = select(func.count()).select_from(base_query.subquery())
 
-        histories = (await session.execute(history_query)).scalars().all()
-        total_count = (await session.execute(count_query)).scalar_one()
+        histories = (await session.execute(history_query)).scalars().all()  # Execute the history query and fetch all matching TicketHistory records
+        total_count = (await session.execute(count_query)).scalar_one() # Execute the count query to get the total number of matching records
 
-        # IMPORTANT: Return a dictionary, not just the list
         return {
             "histories": histories,
             "total": total_count,
