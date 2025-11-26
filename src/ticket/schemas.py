@@ -7,11 +7,6 @@ from src.comment.schemas import CommentResponse
 
 
 
-
-
-
-
-
 class AttachmentResponse(BaseModel):
     attachment_id : uuid.UUID
     ticket_id : uuid.UUID

@@ -5,7 +5,7 @@ from sqlmodel import select, func
 from uuid import UUID
 
 from src.db.models.ticket import Ticket, TicketStatus, TicketPriority
-from src.db.models.user import User
+from src.db.models.user import User, UserRole
 from src.ticket.schemas import TicketCreateRequest, TicketUpdateRequest
 from src.errors import TicketNotFoundError, UserNotFoundError, UnauthorizedError, InvalidTicketUpdateError, TicketPriorityUpdateError, TicketStatusUpdateError, TicketAssignmentError, BadRequestError, AttachmentNotFoundError
 
@@ -122,7 +122,33 @@ class TicketService:
         if "assigned_to" in update_data and not (is_creator or is_privileged(user)):
             raise TicketAssignmentError()
 
-        
+    async def _validate_user_for_assignment(self, user_id, session):
+        """
+        Validate if the assigned_to user exists and has the correct role.
+        """
+        if not user_id:
+            return  # No assignment change → nothing to validate
+
+        # Fetch user
+        result = await session.execute(
+            select(User).where(User.user_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise ValueError("Assigned user does not exist")
+
+        # Allowed roles
+        valid_roles = {
+            UserRole.ADMIN,
+            UserRole.MANAGER,
+            UserRole.IT_SUPPORT
+        }
+
+        if user.role not in valid_roles:
+            raise ValueError(
+                f"User role '{user.role}' is not allowed to be assigned to tickets"
+            )
 
 
         
@@ -245,6 +271,18 @@ class TicketService:
         tickets = result.scalars().all()
         if not tickets:
             raise TicketNotFoundError()
+        return tickets
+    
+    async def get_unassigned_tickets(
+            self,
+            session : AsyncSession
+    ):
+        """Get all tickets that are not assigned to any user."""
+        unassigned_tickets = select(Ticket).where(
+            Ticket.assigned_to.is_(None)
+        )
+        result = await session.execute(unassigned_tickets)
+        tickets = result.scalars().all()
         return tickets
     
 
@@ -463,12 +501,14 @@ class TicketService:
             .limit(HISTORY_PAGE_SIZE)
         )
 
+        # Build a separate query to count total matching records
+        # This is needed for pagination metadata (total pages, etc.)
+        # We use the same base_query (with filters) to ensure accurate count
         count_query = select(func.count()).select_from(base_query.subquery())
 
-        histories = (await session.execute(history_query)).scalars().all()
-        total_count = (await session.execute(count_query)).scalar_one()
+        histories = (await session.execute(history_query)).scalars().all()  # Execute the history query and fetch all matching TicketHistory records
+        total_count = (await session.execute(count_query)).scalar_one() # Execute the count query to get the total number of matching records
 
-        # IMPORTANT: Return a dictionary, not just the list
         return {
             "histories": histories,
             "total": total_count,
