@@ -12,12 +12,25 @@ class TicketCountByStatus(BaseModel):
     closed : int = 0
     approved : int = 0
 
+class UserWithTicketStats(BaseModel):
+    user_id: UUID
+    username: str
+    email: str
+    full_name: str | None
+    role: str
+    is_active: bool
+    resolved: int = 0
+    pending: int = 0
+    assigned_open: int = 0
+    in_progress: int = 0
+
 class RoleTicketStatusBreakdown(BaseModel):
     role: str
     resolved: int = 0
     pending: int = 0
     assigned_open: int = 0
     in_progress: int = 0
+    users: List[UserWithTicketStats] = []
 
 
 class RoleTicketStatsResponse(BaseModel):

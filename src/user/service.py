@@ -93,5 +93,50 @@ class UserManagementService:
         await session.refresh(user)
         return user
 
+    async def get_all_admins(
+            self,
+            session: AsyncSession,
+            is_active: bool | None = None,
+    ) -> list[User]:
+        """Get all users with ADMIN role."""
+        statement = select(User).where(User.role == UserRole.ADMIN)
+        
+        if is_active is not None:
+            statement = statement.where(User.is_active == is_active)
+        
+        statement = statement.order_by(User.created_at.desc())
+        result = await session.execute(statement)
+        return list(result.scalars().all())
+
+    async def get_all_support(
+            self,
+            session: AsyncSession,
+            is_active: bool | None = None,
+    ) -> list[User]:
+        """Get all users with IT_SUPPORT role."""
+        statement = select(User).where(User.role == UserRole.IT_SUPPORT)
+        
+        if is_active is not None:
+            statement = statement.where(User.is_active == is_active)
+        
+        statement = statement.order_by(User.created_at.desc())
+        result = await session.execute(statement)
+        return list(result.scalars().all())
+
+    async def get_all_managers(
+            self,
+            session: AsyncSession,
+            is_active: bool | None = None,
+    ) -> list[User]:
+        """Get all users with MANAGER role."""
+        statement = select(User).where(User.role == UserRole.MANAGER)
+        
+        if is_active is not None:
+            statement = statement.where(User.is_active == is_active)
+        
+        statement = statement.order_by(User.created_at.desc())
+        result = await session.execute(statement)
+        return list(result.scalars().all())
+
         
 
