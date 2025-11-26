@@ -10,7 +10,6 @@ class TicketCountByStatus(BaseModel):
     approved : int = 0
 
 
-
 class AnalyticsDashboardResponse(BaseModel):
     tickets_by_status: TicketCountByStatus
     tickets_opened_today: int

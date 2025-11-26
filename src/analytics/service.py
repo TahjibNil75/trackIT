@@ -1,7 +1,8 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schemas import TicketCountByStatus, AnalyticsDashboardResponse
 from sqlmodel import select, func
-from src.db.models.ticket import Ticket
+from src.db.models.ticket import Ticket, TicketStatus
+from src.db.models.user import User
 from datetime import datetime, timedelta
 from sqlalchemy import cast, Date
 
@@ -50,9 +51,7 @@ class AnalyticsService:
             )
         )
         return tickets.scalar_one() or 0
-        
-
-
+    
 
 
 
@@ -70,5 +69,5 @@ class AnalyticsService:
 
         return AnalyticsDashboardResponse(
             tickets_by_status=tickets_by_status,
-            tickets_opened_today=tickets_opened_today
+            tickets_opened_today=tickets_opened_today,
         )
