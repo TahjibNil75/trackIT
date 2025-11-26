@@ -12,6 +12,11 @@ class TicketCountByStatus(BaseModel):
     closed : int = 0
     approved : int = 0
 
+class TicketCountByPriority(BaseModel):
+    low : int = 0
+    medium : int = 0
+    high : int = 0
+
 class UserWithTicketStats(BaseModel):
     user_id: UUID
     username: str
@@ -41,4 +46,7 @@ class RoleTicketStatsResponse(BaseModel):
 
 class AnalyticsDashboardResponse(BaseModel):
     tickets_by_status: TicketCountByStatus
+    tickets_by_priority: TicketCountByPriority
     tickets_opened_today: int
+    overdue_tickets: int
+    unassigned_tickets: int

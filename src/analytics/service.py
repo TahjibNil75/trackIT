@@ -1,7 +1,7 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
-from .schemas import TicketCountByStatus, AnalyticsDashboardResponse, RoleTicketStatsResponse, RoleTicketStatusBreakdown, UserWithTicketStats
+from .schemas import TicketCountByStatus, TicketCountByPriority, AnalyticsDashboardResponse, RoleTicketStatsResponse, RoleTicketStatusBreakdown, UserWithTicketStats
 from sqlmodel import select, func
-from src.db.models.ticket import Ticket, TicketStatus
+from src.db.models.ticket import Ticket, TicketStatus, TicketPriority
 from src.db.models.user import User, UserRole
 from src.user.service import UserManagementService
 from datetime import datetime, timedelta
@@ -12,7 +12,7 @@ from uuid import UUID
 
 class AnalyticsService:
     def __init__(self):
-        self.user_service = UserManagementService()
+        self.user_service = UserManagementService() ## Import User Management Service
 
     # ==================== Helper Methods ====================
 
@@ -57,17 +57,55 @@ class AnalyticsService:
         )
         return tickets.scalar_one() or 0
     
-
-
-
-
-
-
-
-        
+    async def get_overdue_tickets(
+            self,
+            session : AsyncSession
+    ) -> int:
+        """Get count of tickets that are more than 30 days old."""
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        tickets = await session.execute(
+            select(func.count(Ticket.ticket_id))
+            .where(
+                Ticket.created_at < thirty_days_ago
+            )
+        )
+        return tickets.scalar_one() or 0
     
+    async def get_unassigned_tickets(
+            self,
+            session : AsyncSession
+    ) -> int:
+        """Get count of tickets that are not assigned to any user."""
+        tickets = await session.execute(
+            select(func.count(Ticket.ticket_id))
+            .where(
+                Ticket.assigned_to.is_(None)
+            )
+        )
+        return tickets.scalar_one() or 0
+    
+    async def get_tickets_by_priority(
+            self,
+            session : AsyncSession
+    ) -> TicketCountByPriority:
+        """Get count of tickets grouped by priority."""
+        tickets = await session.execute(
+            select(
+                Ticket.priority,
+                func.count(Ticket.ticket_id).label("count")
+            )
+            .group_by(Ticket.priority)
+        )
+        priority_counts = {
+            row.priority.value: row.count for row in tickets.all()
+        }
 
-
+        return TicketCountByPriority(
+            low=priority_counts.get("low", 0),
+            medium=priority_counts.get("medium", 0),
+            high=priority_counts.get("high", 0)
+        )
+    
 
 
     # ==================== Main Service Method ====================
@@ -79,11 +117,17 @@ class AnalyticsService:
             page_size: int = 10
     ) -> AnalyticsDashboardResponse:
         tickets_by_status = await self.get_tickets_by_status(session)
+        tickets_by_priority = await self.get_tickets_by_priority(session)
         tickets_opened_today = await self.get_tickets_opened_today(session)
+        overdue_tickets = await self.get_overdue_tickets(session)
+        unassigned_tickets = await self.get_unassigned_tickets(session)
 
         return AnalyticsDashboardResponse(
             tickets_by_status=tickets_by_status,
+            tickets_by_priority=tickets_by_priority,
             tickets_opened_today=tickets_opened_today,
+            overdue_tickets=overdue_tickets,
+            unassigned_tickets=unassigned_tickets,
         )
     
 
