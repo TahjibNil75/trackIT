@@ -136,6 +136,21 @@ async def get_my_tickets(
     return await ticket_service.get_user_tickets(user_id, session)
 
 @ticket_router.get(
+    "/unassigned",
+    status_code=status.HTTP_200_OK,
+    response_model=list[TicketSummaryResponse],
+    dependencies=[PrivilegedRoles],
+    summary="Get all unassigned tickets",
+)
+async def get_unassigned_tickets(
+    session : AsyncSession = Depends(get_session),
+    current_user: dict = Depends(AccessTokenBearer()),
+):
+    """Get a list of all tickets that are not assigned to any user.
+    Only accessible by admin, manager, and IT support roles."""
+    return await ticket_service.get_unassigned_tickets(session)
+
+@ticket_router.get(
         "/{ticket_id}",
         status_code=status.HTTP_200_OK,
         response_model=TicketDetails,

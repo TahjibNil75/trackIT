@@ -273,6 +273,18 @@ class TicketService:
             raise TicketNotFoundError()
         return tickets
     
+    async def get_unassigned_tickets(
+            self,
+            session : AsyncSession
+    ):
+        """Get all tickets that are not assigned to any user."""
+        unassigned_tickets = select(Ticket).where(
+            Ticket.assigned_to.is_(None)
+        )
+        result = await session.execute(unassigned_tickets)
+        tickets = result.scalars().all()
+        return tickets
+    
 
 
 
