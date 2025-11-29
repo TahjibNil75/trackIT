@@ -1,7 +1,7 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
-from .schemas import TicketCountByStatus, TicketCountByPriority, AnalyticsDashboardResponse, RoleTicketStatsResponse, RoleTicketStatusBreakdown, UserWithTicketStats
+from .schemas import TicketCountByStatus, TicketCountByPriority, AnalyticsDashboardResponse, RoleTicketStatsResponse, RoleTicketStatusBreakdown, UserWithTicketStats, UsersWithStatsResponse
 from sqlmodel import select, func
-from src.db.models.ticket import Ticket, TicketStatus, TicketPriority
+from src.db.models.ticket import Ticket, TicketStatus
 from src.db.models.user import User, UserRole
 from src.user.service import UserManagementService
 from datetime import datetime, timedelta
@@ -57,55 +57,6 @@ class AnalyticsService:
         )
         return tickets.scalar_one() or 0
     
-    async def get_overdue_tickets(
-            self,
-            session : AsyncSession
-    ) -> int:
-        """Get count of tickets that are more than 30 days old."""
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        tickets = await session.execute(
-            select(func.count(Ticket.ticket_id))
-            .where(
-                Ticket.created_at < thirty_days_ago
-            )
-        )
-        return tickets.scalar_one() or 0
-    
-    async def get_unassigned_tickets(
-            self,
-            session : AsyncSession
-    ) -> int:
-        """Get count of tickets that are not assigned to any user."""
-        tickets = await session.execute(
-            select(func.count(Ticket.ticket_id))
-            .where(
-                Ticket.assigned_to.is_(None)
-            )
-        )
-        return tickets.scalar_one() or 0
-    
-    async def get_tickets_by_priority(
-            self,
-            session : AsyncSession
-    ) -> TicketCountByPriority:
-        """Get count of tickets grouped by priority."""
-        tickets = await session.execute(
-            select(
-                Ticket.priority,
-                func.count(Ticket.ticket_id).label("count")
-            )
-            .group_by(Ticket.priority)
-        )
-        priority_counts = {
-            row.priority.value: row.count for row in tickets.all()
-        }
-
-        return TicketCountByPriority(
-            low=priority_counts.get("low", 0),
-            medium=priority_counts.get("medium", 0),
-            high=priority_counts.get("high", 0)
-        )
-    
 
 
     # ==================== Main Service Method ====================
@@ -117,17 +68,11 @@ class AnalyticsService:
             page_size: int = 10
     ) -> AnalyticsDashboardResponse:
         tickets_by_status = await self.get_tickets_by_status(session)
-        tickets_by_priority = await self.get_tickets_by_priority(session)
         tickets_opened_today = await self.get_tickets_opened_today(session)
-        overdue_tickets = await self.get_overdue_tickets(session)
-        unassigned_tickets = await self.get_unassigned_tickets(session)
 
         return AnalyticsDashboardResponse(
             tickets_by_status=tickets_by_status,
-            tickets_by_priority=tickets_by_priority,
             tickets_opened_today=tickets_opened_today,
-            overdue_tickets=overdue_tickets,
-            unassigned_tickets=unassigned_tickets,
         )
     
 
@@ -377,4 +322,31 @@ class AnalyticsService:
             start_date=start_date,
             end_date=end_date,
             user_id=user_id
+        )
+    
+    async def get_users_with_stats(
+            self,
+            session: AsyncSession,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+            roles: Optional[list[str]] = None
+    ) -> UsersWithStatsResponse:
+        """Get all users with their ticket statistics, without role grouping."""
+        # Validate and filter roles
+        filtered_roles = await self._validate_and_filter_roles(
+            session, roles, None
+        )
+        
+        # Get all users with stats for each role
+        all_users_with_stats = []
+        for role_value in filtered_roles:
+            users_with_stats = await self._get_users_with_ticket_stats(
+                session, role_value, start_date, end_date
+            )
+            all_users_with_stats.extend(users_with_stats)
+        
+        return UsersWithStatsResponse(
+            users=all_users_with_stats,
+            start_date=start_date,
+            end_date=end_date
         )

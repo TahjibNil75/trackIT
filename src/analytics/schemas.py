@@ -50,3 +50,8 @@ class AnalyticsDashboardResponse(BaseModel):
     tickets_opened_today: int
     overdue_tickets: int
     unassigned_tickets: int
+
+class UsersWithStatsResponse(BaseModel):
+    users: List[UserWithTicketStats]
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None

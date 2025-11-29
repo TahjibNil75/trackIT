@@ -33,7 +33,7 @@ async def get_analytics_dashboard(
     )
 
 @analytics_router.get(
-    "/support-metrics",
+    "/detail-stats",
     status_code=status.HTTP_200_OK,
     dependencies=[AnalyticsAccess],
     summary="Get support metrics based on user roles and user",
@@ -53,6 +53,29 @@ async def get_support_metrics(
         start_date=start_date,
         end_date=end_date,
         user_id=user_id,
+        roles=roles
+    )
+
+@analytics_router.get(
+    "/users-stats",
+    status_code=status.HTTP_200_OK,
+    dependencies=[AnalyticsAccess],
+    summary="Get all users with their ticket statistics (not grouped by role)",
+)
+async def get_users_with_stats(
+    session: AsyncSession = Depends(get_session),
+    start_date: Optional[datetime] = Query(None, description="Start date for filtering metrics"),
+    end_date: Optional[datetime] = Query(None, description="End date for filtering metrics"),
+    roles: Optional[list[str]] = Query(
+        None,
+        description="List of user roles to filter (e.g., admin, it_support, manager). Defaults to all privileged roles."
+    ),
+):
+    """Get a flat list of users with their ticket statistics, without role grouping."""
+    return await analytics_service.get_users_with_stats(
+        session=session,
+        start_date=start_date,
+        end_date=end_date,
         roles=roles
     )
 

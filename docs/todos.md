@@ -25,3 +25,12 @@
 Redis
 Celery
 will use in analytics dashboard -->
+
+
+## Dashboard
+1. Tickets Assigned to Me (Done)
+2. High Priority Tickets which is not closed or solved
+3. Unassigned ticket list (Done)
+4. Tickets Pending Approval list
+5. Ticket opened more than 1 month or unresolved (over due ticket)
+
