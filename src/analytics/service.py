@@ -225,7 +225,9 @@ class AnalyticsService:
             "resolved": 0,
             "pending": 0,
             "assigned_open": 0,
-            "in_progress": 0
+            "in_progress": 0,
+            "approval_pending" : 0,
+            "approved" : 0,
         }
         
         # Aggregate ticket counts by status
@@ -238,6 +240,10 @@ class AnalyticsService:
                 stats["assigned_open"] = stat_row.count
             elif stat_row.status == TicketStatus.IN_PROGRESS:
                 stats["in_progress"] = stat_row.count
+            elif stat_row.status == TicketStatus.APPROVAL_PENDING:
+                stats["approval_pending"] = stat_row.count
+            elif stat_row.status == TicketStatus.APPROVED:
+                stats["approved"] = stat_row.count
         
         return stats
 
@@ -324,29 +330,173 @@ class AnalyticsService:
             user_id=user_id
         )
     
-    async def get_users_with_stats(
+    # ==================== Users Stats Helper Methods ====================
+
+    async def _get_all_users_with_stats(
             self,
             session: AsyncSession,
             start_date: Optional[datetime] = None,
             end_date: Optional[datetime] = None,
-            roles: Optional[list[str]] = None
-    ) -> UsersWithStatsResponse:
-        """Get all users with their ticket statistics, without role grouping."""
-        # Validate and filter roles
+    ) -> list[UserWithTicketStats]:
+        """Get all users with their ticket statistics."""
+        all_users_result = await session.execute(select(User))
+        all_users = all_users_result.scalars().all()
+
+        all_users_with_stats = []
+        for user in all_users:
+            stats = await self._calculate_user_ticket_stats(
+                session, user, start_date, end_date
+            )
+            user_with_stats = UserWithTicketStats(
+                user_id=user.user_id,
+                username=user.username,
+                email=user.email,
+                full_name=user.full_name,
+                role=user.role.value,
+                is_active=user.is_active,
+                resolved=stats["resolved"],
+                pending=stats["pending"],
+                assigned_open=stats["assigned_open"],
+                in_progress=stats["in_progress"],
+                approval_pending = stats["approval_pending"],
+                approved = stats["approved"],
+            )
+            all_users_with_stats.append(user_with_stats)
+
+        return all_users_with_stats
+    
+    async def _get_users_by_role_with_stats(
+            self,
+            session: AsyncSession,
+            roles: list[str],
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None
+    ) -> list[UserWithTicketStats]:
+        """Get users filtered by roles with their ticket statistics."""
         filtered_roles = await self._validate_and_filter_roles(
             session, roles, None
         )
-        
-        # Get all users with stats for each role
         all_users_with_stats = []
         for role_value in filtered_roles:
             users_with_stats = await self._get_users_with_ticket_stats(
                 session, role_value, start_date, end_date
             )
             all_users_with_stats.extend(users_with_stats)
+
+        return all_users_with_stats
+    
+    def _filter_users_by_profile_field(
+            self,
+            users: list[UserWithTicketStats],
+            full_name: Optional[str] = None,
+            email: Optional[str] = None,
+            username: Optional[str] = None
+    ) -> list[UserWithTicketStats]:
+        """Filter users based on profile fields."""
+        filtered_users = users
+
+        if full_name:
+            filtered_users = [
+                user for user in filtered_users
+                if user.full_name and full_name.lower() in user.full_name.lower()
+            ]
         
+        if email:
+            filtered_users = [
+                user for user in filtered_users
+                if email.lower() in user.email.lower()
+            ]
+        
+        if username:
+            filtered_users = [
+                user for user in filtered_users
+                if username.lower() in user.username.lower()
+            ]
+        
+        return filtered_users
+    
+
+
+    def _filter_users_by_ticket_stats(
+            self,
+            users: list[UserWithTicketStats],
+            stauses: Optional[list[str]] = None
+    ) -> list[UserWithTicketStats]:
+        
+        """Filter users based on ticket statistics."""
+        if not stauses:
+            return users
+        
+        status_field_map = {
+            "resolved": "resolved",
+            "pending": "pending",
+            "assigned_open": "assigned_open",
+            "in_progress": "in_progress",
+            "approval_pending": "approval_pending",
+            "approved": "approved",
+        }
+
+        # Filter users who have tickets in at least one of the specified statuses
+        filtered_users = []
+        # ✔ Prevents duplicates
+        # ✔ Makes the filtering accurate
+        # ✔ Improves performance for large lists
+        seen_user_ids = set()
+
+        for user in users:
+            # Skip if user already added
+            if user.user_id in seen_user_ids:
+                continue
+            for status in stauses:
+                status_lower = status.lower()
+                if status_lower in status_field_map:
+                    stat_field = status_field_map[status_lower]
+                    if getattr(user, stat_field, 0) > 0:
+                        filtered_users.append(user)
+                        seen_user_ids.add(user.user_id)
+                        break
+        return filtered_users
+
+
+
+
+    async def get_users_with_stats(
+            self,
+            session: AsyncSession,
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+            roles : Optional[list[str]] = None,
+            full_name: Optional[str] = None,
+            email: Optional[str] = None,
+            username: Optional[str] = None,
+            stauses: Optional[list[str]] = None,
+
+    ) -> UsersWithStatsResponse:
+        """Get all users with their ticket statistics."""
+
+        # Step 1: Get users with stats (all users or filtered by roles)
+        if roles is None:
+            users_with_stats = await self._get_all_users_with_stats(
+                session, start_date, end_date
+            )
+        else:
+            users_with_stats = await self._get_users_by_role_with_stats(
+                session, roles, start_date, end_date
+            )
+        
+        # Step 2: Apply profile filters (full_name, email, username)
+        filtered_users = self._filter_users_by_profile_field(
+            users_with_stats, full_name, email, username
+        )
+
+        # Step 3: Apply ticket status filters
+        filtered_users = self._filter_users_by_ticket_stats(
+            filtered_users, stauses
+        )
+
         return UsersWithStatsResponse(
-            users=all_users_with_stats,
+            users=filtered_users,
             start_date=start_date,
             end_date=end_date
         )
+        

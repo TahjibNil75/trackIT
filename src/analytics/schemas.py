@@ -28,6 +28,8 @@ class UserWithTicketStats(BaseModel):
     pending: int = 0
     assigned_open: int = 0
     in_progress: int = 0
+    approval_pending: int = 0
+    approved: int = 0
 
 class RoleTicketStatusBreakdown(BaseModel):
     role: str
