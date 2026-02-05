@@ -56,12 +56,11 @@ async def get_support_metrics(
         roles=roles
     )
 
-
 @analytics_router.get(
-    "/users-with-stats",
+    "/users-stats",
     status_code=status.HTTP_200_OK,
     dependencies=[AnalyticsAccess],
-    summary="Get users with ticket statistics",
+    summary="Get all users with their ticket statistics (not grouped by role)",
 )
 async def get_users_with_stats(
     session: AsyncSession = Depends(get_session),
@@ -69,23 +68,15 @@ async def get_users_with_stats(
     end_date: Optional[datetime] = Query(None, description="End date for filtering metrics"),
     roles: Optional[list[str]] = Query(
         None,
-        description="List of user roles to filter (e.g., admin, it_support, manager). If not provided, returns all users."
-    ),
-    full_name: Optional[str] = Query(None, description="Filter users by full name (case-insensitive partial match)"),
-    email: Optional[str] = Query(None, description="Filter users by email (case-insensitive partial match)"),
-    username: Optional[str] = Query(None, description="Filter users by username (case-insensitive partial match)"),
-    stauses: Optional[list[str]] = Query(
-        None,
-        description="Filter users by ticket statuses. Select one or more: 'resolved', 'pending', 'assigned_open', 'in_progress'. Returns users who have tickets in any of the selected statuses."
+        description="List of user roles to filter (e.g., admin, it_support, manager). Defaults to all privileged roles."
     ),
 ):
+    """Get a flat list of users with their ticket statistics, without role grouping."""
     return await analytics_service.get_users_with_stats(
         session=session,
         start_date=start_date,
         end_date=end_date,
-        roles=roles,
-        full_name=full_name,
-        email=email,
-        username=username,
-        stauses=stauses
+        roles=roles
     )
+
+
