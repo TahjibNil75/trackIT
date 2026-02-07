@@ -1,7 +1,7 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schemas import TicketCountByStatus, TicketCountByPriority, AnalyticsDashboardResponse, RoleTicketStatsResponse, RoleTicketStatusBreakdown, UserWithTicketStats, UsersWithStatsResponse
 from sqlmodel import select, func
-from src.db.models.ticket import Ticket, TicketStatus
+from src.db.models.ticket import Ticket, TicketStatus, TicketPriority
 from src.db.models.user import User, UserRole
 from src.user.service import UserManagementService
 from datetime import datetime, timedelta
@@ -43,6 +43,37 @@ class AnalyticsService:
         )
     
 
+    async def get_tickets_by_priority(
+            self,
+            session: AsyncSession
+    ) -> TicketCountByPriority:
+        tickets = await session.execute(
+            select(
+                Ticket.priority,
+                func.count(Ticket.ticket_id).label("count")
+            )
+            .group_by(Ticket.priority)
+        )
+        priority_counts = {
+            row.priority.value: row.count for row in tickets.all()
+        }
+
+        return TicketCountByPriority(
+            low=priority_counts.get("low", 0),
+            medium=priority_counts.get("medium", 0),
+            high=priority_counts.get("high", 0),
+        )
+
+    async def get_unassigned_tickets(
+            self,
+            session: AsyncSession
+    ) -> int:
+        result = await session.execute(
+            select(func.count(Ticket.ticket_id))
+            .where(Ticket.assigned_to == None)
+        )
+        return result.scalar_one() or 0
+
     async def get_tickets_opened_today(
             self,
             session : AsyncSession
@@ -68,11 +99,16 @@ class AnalyticsService:
             page_size: int = 10
     ) -> AnalyticsDashboardResponse:
         tickets_by_status = await self.get_tickets_by_status(session)
+        tickets_by_priority = await self.get_tickets_by_priority(session)
         tickets_opened_today = await self.get_tickets_opened_today(session)
+        unassigned_tickets = await self.get_unassigned_tickets(session)
 
         return AnalyticsDashboardResponse(
             tickets_by_status=tickets_by_status,
+            tickets_by_priority=tickets_by_priority,
             tickets_opened_today=tickets_opened_today,
+            overdue_tickets=0,
+            unassigned_tickets=unassigned_tickets,
         )
     
 
