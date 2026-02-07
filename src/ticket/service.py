@@ -245,7 +245,10 @@ class TicketService:
     ):
         result = await session.execute(
             select(Ticket)
-            .options(selectinload(Ticket.comments))  # eager-load comments
+            .options(
+                selectinload(Ticket.comments),
+                selectinload(Ticket.attachments),
+            )
             .where(Ticket.ticket_id == ticket_id)
         )
         ticket = result.scalar_one_or_none()

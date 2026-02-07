@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from src.db.main import init_db
 from src.auth.routes import auth_router
@@ -21,6 +22,21 @@ async def lifespan(_app: FastAPI):
 version = "v1"
 _app = FastAPI(lifespan=lifespan)
 
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 version_prefix = f"/api/{version}"
 
 
@@ -34,4 +50,3 @@ _app.include_router(ticket_router, prefix=f"{version_prefix}/ticket", tags=["Tic
 _app.include_router(user_management_router, prefix=f"{version_prefix}/user", tags=["User Management"])
 _app.include_router(comment_router, prefix=f"{version_prefix}/comment", tags=["Comment"])
 _app.include_router(analytics_router, prefix=f"{version_prefix}/analytics", tags=["Analytics"])
-
