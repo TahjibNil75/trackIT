@@ -1,0 +1,70 @@
+name: Deploy TrackIT to EC2 via Bastion
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup SSH Key
+        run: |
+          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          chmod 400 key.pem
+
+      - name: Copy Files to EC2 via Bastion
+        run: |
+          scp -o StrictHostKeyChecking=no \
+            -o IdentityFile=key.pem \
+            -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.BASTION_HOST }} \
+            -r . ${{ secrets.EC2_USER }}@${{ secrets.APP_PUBLIC_IP }}:/home/ubuntu/trackIT/
+
+      - name: Deploy on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+            -o IdentityFile=key.pem \
+            -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.BASTION_HOST }} \
+            ${{ secrets.EC2_USER }}@${{ secrets.APP_PUBLIC_IP }} << EOF
+
+          cd /home/ubuntu/trackIT
+
+          cat > .env << ENVEOF
+          DATABASE_URL='${{ secrets.DATABASE_URL }}'
+          JWT_SECRET='${{ secrets.JWT_SECRET }}'
+          JWT_ALGORITHM='${{ secrets.JWT_ALGORITHM }}'
+          AWS_S3_BUCKET_NAME='${{ secrets.AWS_S3_BUCKET_NAME }}'
+          AWS_S3_REGION='${{ secrets.AWS_S3_REGION }}'
+          AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'
+          AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          PORT='${{ secrets.PORT }}'
+          ENVIRONMENT='${{ secrets.ENVIRONMENT }}'
+          ENVEOF
+
+          docker compose down 2>/dev/null || true
+          docker compose up --build -d
+
+          sleep 30
+
+          if curl -f http://localhost:8000/api/v1/health; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed - health check failed"
+            docker compose logs
+            exit 1
+          fi
+
+          docker image prune -f
+
+          EOF
+
+      - name: Cleanup SSH Key
+        if: always()
+        run: rm -f key.pem
